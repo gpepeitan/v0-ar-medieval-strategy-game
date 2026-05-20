@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useGameStore } from '@/lib/game/store'
 import { Button } from '@/components/ui/button'
 import { 
@@ -9,18 +10,20 @@ import {
   Coins, 
   Users,
   Save,
+  FolderOpen,
   Wheat,
   Hammer,
   Trees,
 } from 'lucide-react'
 import { SpeedControls } from './SpeedControls'
+import { SaveLoadDialog } from '../dialogs/SaveLoadDialog'
 
 export function TopBar() {
   const game = useGameStore(state => state.game)
   const ui = useGameStore(state => state.ui)
   const setActivePanel = useGameStore(state => state.setActivePanel)
-  const saveGame = useGameStore(state => state.saveGame)
   const getPlayerFaction = useGameStore(state => state.getPlayerFaction)
+  const [saveDialog, setSaveDialog] = useState<'save' | 'load' | null>(null)
   
   if (!game) return null
   
@@ -87,18 +90,32 @@ export function TopBar() {
         ))}
       </nav>
       
-      {/* Right: Speed Controls + Save */}
+      {/* Right: Speed Controls + Save/Load */}
       <div className="flex items-center gap-2">
         <SpeedControls />
         <Button 
           variant="ghost" 
           size="sm"
-          onClick={saveGame}
+          onClick={() => setSaveDialog('load')}
+          title="Load Game"
+          className="text-slate-400 hover:text-slate-100"
+        >
+          <FolderOpen className="h-4 w-4" />
+        </Button>
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={() => setSaveDialog('save')}
           title="Save Game"
+          className="text-slate-400 hover:text-amber-400"
         >
           <Save className="h-4 w-4" />
         </Button>
       </div>
+      
+      {saveDialog && (
+        <SaveLoadDialog mode={saveDialog} onClose={() => setSaveDialog(null)} />
+      )}
     </header>
   )
 }

@@ -8,8 +8,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Medieval Strategy - Conquer, Trade, Negotiate',
-  description: 'A deep single-player medieval strategy game with AI factions, siege warfare, and diplomatic negotiations',
+  title: 'Realm Conquest — Medieval Strategy',
+  description: 'Command armies, forge alliances, and conquer a medieval world. 12 AI factions, real-time battles, deep diplomacy.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -36,7 +36,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="bg-background">
       <body className="font-sans antialiased bg-background text-foreground">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

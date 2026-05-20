@@ -15,6 +15,8 @@ import { BattleAlerts } from './ui/BattleAlerts'
 import { BattleCommandDialog } from './dialogs/BattleCommandDialog'
 import { NotificationStack } from './ui/NotificationStack'
 import { EventLog } from './ui/EventLog'
+import { VictoryScreen } from './ui/VictoryScreen'
+import { RandomEventDialog } from './ui/RandomEventDialog'
 
 export function GameLayout() {
   const game = useGameStore(state => state.game)
@@ -68,6 +70,12 @@ export function GameLayout() {
       
       {/* Notifications */}
       <NotificationStack />
+      
+      {/* Random Events */}
+      <RandomEventDialog />
+      
+      {/* Victory / Defeat Screen */}
+      <VictoryScreen />
     </div>
   )
 }
