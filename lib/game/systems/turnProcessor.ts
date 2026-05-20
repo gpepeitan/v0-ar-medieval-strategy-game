@@ -3,6 +3,7 @@
 import { v4 as uuid } from 'uuid'
 import {
   GameState,
+  GameSpeed,
   Faction,
   Territory,
   Army,
@@ -208,7 +209,7 @@ function processSieges(game: GameState): GameState {
             // Add event
             newEvents.push({
               id: uuid(),
-              turn: game.time.totalDays,
+              day: game.time.totalDays,
               type: 'territory_captured',
               title: 'Territory Captured!',
               description: `${attacker.name} has captured ${territory.name} from ${defender.name}!`,
@@ -250,7 +251,7 @@ function processSieges(game: GameState): GameState {
           
           newEvents.push({
             id: uuid(),
-            turn: game.time.totalDays,
+            day: game.time.totalDays,
             type: 'siege_ended',
             title: 'Siege Ended - Surrender',
             description: `${territory.name} has surrendered to ${attackerFaction.name}!`,
@@ -424,7 +425,7 @@ function checkVictoryConditions(game: GameState): GameState {
   if (condition?.type === 'domination' && controlPercent >= condition.threshold) {
     const event: GameEvent = {
       id: uuid(),
-      turn: game.time.totalDays,
+      day: game.time.totalDays,
       type: 'victory',
       title: 'Victory!',
       description: `${playerFaction.name} has achieved domination by controlling ${Math.floor(controlPercent * 100)}% of all territories!`,
@@ -434,8 +435,9 @@ function checkVictoryConditions(game: GameState): GameState {
     
     return {
       ...game,
+      isRunning: false,
+      speed: 0 as GameSpeed,
       eventLog: [...game.eventLog, event],
-      isPaused: true,
     }
   }
   
@@ -457,7 +459,7 @@ function checkDefeatedFactions(game: GameState): GameState {
       
       newEvents.push({
         id: uuid(),
-        turn: game.time.totalDays,
+        day: game.time.totalDays,
         type: 'battle',
         title: 'Faction Defeated!',
         description: `${faction.name} has been eliminated!`,

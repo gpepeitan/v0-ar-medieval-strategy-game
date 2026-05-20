@@ -71,7 +71,7 @@ export function DiplomacyPanel() {
             const relationValue = getRelationValue(relation)
             const isAtWar = relation?.status === 'war'
             const hasAlliance = relation?.status === 'alliance'
-            const hasTrade = relation?.treaties?.some(t => t.type === 'trade' && t.isActive) ?? false
+            const hasTrade = relation?.treaties?.some(t => t.type === 'trade_agreement' && t.isActive) ?? false
 
             // Count territories and armies for strength display
             const territoryCount = faction.territories.length

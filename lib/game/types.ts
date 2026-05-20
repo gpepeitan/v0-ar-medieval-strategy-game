@@ -199,8 +199,8 @@ export interface Treaty {
   type: DiplomaticStatus
   parties: [string, string]
   terms: TreatyTerms
-  startTurn: number
-  expirationTurn: number | null
+  startDay: number
+  expirationDay: number | null
   isActive: boolean
 }
 
@@ -222,7 +222,7 @@ export interface DiplomaticRelation {
 }
 
 export interface DiplomaticEvent {
-  turn: number
+  day: number
   type: string
   description: string
   impact: number
@@ -499,8 +499,8 @@ export interface UIState {
 
 export interface Notification {
   id: string
-  type: 'info' | 'warning' | 'success' | 'danger'
+  type: 'info' | 'success' | 'warning' | 'danger'
   title: string
   message: string
-  duration: number
+  duration?: number
 }

@@ -757,7 +757,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
         },
       }))
       
-      if (notification.duration > 0) {
+      if (notification.duration && notification.duration > 0) {
         setTimeout(() => get().removeNotification(id), notification.duration)
       }
     },
