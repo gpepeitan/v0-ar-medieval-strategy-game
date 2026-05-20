@@ -333,6 +333,34 @@ export const FACTION_DEFINITIONS: FactionDefinition[] = [
   },
 ]
 
+// Convert FACTION_DEFINITIONS to a keyed object for easier access
+export const FACTION_CONFIG: Record<string, FactionDefinition & { strengths: string[], weaknesses: string[] }> = Object.fromEntries(
+  FACTION_DEFINITIONS.map(f => [
+    f.id,
+    {
+      ...f,
+      strengths: [f.startingBonus],
+      weaknesses: [getWeaknessForPersonality(f.personality)],
+    }
+  ])
+)
+
+function getWeaknessForPersonality(personality: AIPersonality): string {
+  const weaknesses: Record<AIPersonality, string> = {
+    militarist: 'Poor diplomacy',
+    merchant: 'Weak military',
+    diplomat: 'Slow expansion',
+    opportunist: 'Unpredictable allies',
+    raider: 'Poor defense',
+    expansionist: 'Overextension',
+    defender: 'Slow growth',
+  }
+  return weaknesses[personality]
+}
+
+// Alias for backwards compatibility
+export const FACTION_TEMPLATES = FACTION_DEFINITIONS
+
 // ==================== AI CONSTANTS ====================
 
 export const AI_PERSONALITY_WEIGHTS: Record<AIPersonality, {

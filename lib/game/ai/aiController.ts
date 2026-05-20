@@ -1,4 +1,4 @@
-// AI Controller - Main AI decision-making system
+// AI Controller - Real-Time AI Decision Making
 
 import { v4 as uuid } from 'uuid'
 import {
@@ -7,6 +7,7 @@ import {
   Territory,
   Army,
   AIState,
+  AIPersonality,
   DiplomaticStatus,
   GameEvent,
   SiegeState,
@@ -14,75 +15,114 @@ import {
 import {
   DIFFICULTY_MODIFIERS,
   AI_PERSONALITY_WEIGHTS,
-  TERRAIN_DEFENSE_BONUS,
   UNIT_STATS,
 } from '../constants'
 
-export function processAITurns(game: GameState): GameState {
-  let updatedGame = { ...game }
+/**
+ * Process AI decisions for all AI factions (real-time version)
+ * Called periodically based on game speed
+ */
+export function processAIDecisions(state: GameState): GameState {
+  let updatedState = state
   
-  // Process each AI faction
-  for (const [factionId, faction] of game.factions) {
+  for (const [factionId, faction] of state.factions) {
     if (faction.isPlayer || faction.isDefeated) continue
     
-    updatedGame = processAIFaction(updatedGame, faction)
+    // Initialize AI state if needed
+    if (!faction.aiState) {
+      const newAIState = initializeAIState(faction)
+      const updatedFactions = new Map(updatedState.factions)
+      updatedFactions.set(factionId, { ...faction, aiState: newAIState })
+      updatedState = { ...updatedState, factions: updatedFactions }
+    }
+    
+    updatedState = processAIFaction(updatedState, factionId)
   }
   
-  return updatedGame
+  return updatedState
 }
 
-function processAIFaction(game: GameState, faction: Faction): GameState {
-  let updatedGame = { ...game }
-  const aiState = faction.aiState
-  if (!aiState) return game
+// Legacy export for backwards compatibility
+export const processAITurns = processAIDecisions
+
+function initializeAIState(faction: Faction): AIState {
+  return {
+    personality: faction.personality,
+    currentStrategy: 'consolidate',
+    targetFaction: null,
+    targetTerritory: null,
+    threatAssessment: new Map(),
+    priorities: {
+      expansion: AI_PERSONALITY_WEIGHTS[faction.personality].expansion,
+      defense: AI_PERSONALITY_WEIGHTS[faction.personality].defense,
+      economy: AI_PERSONALITY_WEIGHTS[faction.personality].economy,
+      military: AI_PERSONALITY_WEIGHTS[faction.personality].military,
+      diplomacy: AI_PERSONALITY_WEIGHTS[faction.personality].diplomacy,
+    },
+    memory: {
+      brokenTreaties: [],
+      betrayals: [],
+      wars: [],
+      gifts: [],
+      negotiations: [],
+    },
+  }
+}
+
+function processAIFaction(state: GameState, factionId: string): GameState {
+  const faction = state.factions.get(factionId)
+  if (!faction?.aiState) return state
   
-  // 1. Update threat assessment
-  const threats = assessThreats(game, faction)
+  let updatedState = state
   
-  // 2. Decide on strategy based on personality and situation
-  const strategy = decideStrategy(game, faction, threats)
+  // 1. Assess threats
+  const threats = assessThreats(state, faction)
   
-  // 3. Execute strategy
+  // 2. Decide strategy
+  const strategy = decideStrategy(state, faction, threats)
+  
+  // 3. Update AI state
+  const updatedAIState = { ...faction.aiState, currentStrategy: strategy }
+  const updatedFactions = new Map(state.factions)
+  updatedFactions.set(factionId, { ...faction, aiState: updatedAIState })
+  updatedState = { ...updatedState, factions: updatedFactions }
+  
+  // 4. Execute strategy
   switch (strategy) {
     case 'expand':
-      updatedGame = executeExpansion(updatedGame, faction)
+      updatedState = executeExpansion(updatedState, factionId)
       break
     case 'defend':
-      updatedGame = executeDefense(updatedGame, faction)
+      updatedState = executeDefense(updatedState, factionId)
       break
     case 'attack':
-      updatedGame = executeAttack(updatedGame, faction, threats)
+      updatedState = executeAttack(updatedState, factionId, threats)
       break
     case 'raid':
-      updatedGame = executeRaid(updatedGame, faction)
+      updatedState = executeRaid(updatedState, factionId)
       break
     case 'consolidate':
-      updatedGame = executeConsolidation(updatedGame, faction)
+      updatedState = executeConsolidation(updatedState, factionId)
       break
     case 'diplomacy':
-      updatedGame = executeDiplomacy(updatedGame, faction)
+      updatedState = executeDiplomacy(updatedState, factionId)
       break
   }
   
-  // 4. Process resource collection
-  updatedGame = processAIResources(updatedGame, faction)
+  // 5. Manage economy and recruitment
+  updatedState = processAIEconomy(updatedState, factionId)
   
-  // 5. Recruit units if needed
-  updatedGame = processAIRecruitment(updatedGame, faction)
-  
-  return updatedGame
+  return updatedState
 }
 
-// Assess threats from other factions
-function assessThreats(game: GameState, faction: Faction): Map<string, number> {
+function assessThreats(state: GameState, faction: Faction): Map<string, number> {
   const threats = new Map<string, number>()
   
-  for (const [otherId, other] of game.factions) {
+  for (const [otherId, other] of state.factions) {
     if (otherId === faction.id || other.isDefeated) continue
     
     let threatLevel = 0
     
-    // Check if at war
     const relation = faction.relations.find(r => r.targetId === otherId)
     if (relation?.status === 'war') {
       threatLevel += 50
@@ -90,9 +130,8 @@ function assessThreats(game: GameState, faction: Faction): Map<string, number> {
       threatLevel += 20
     }
     
-    // Check military strength
-    const ourStrength = calculateMilitaryStrength(game, faction.id)
-    const theirStrength = calculateMilitaryStrength(game, otherId)
+    const ourStrength = calculateMilitaryStrength(state, faction.id)
+    const theirStrength = calculateMilitaryStrength(state, otherId)
     
     if (theirStrength > ourStrength * 1.5) {
       threatLevel += 30
@@ -100,19 +139,15 @@ function assessThreats(game: GameState, faction: Faction): Map<string, number> {
       threatLevel += 15
     }
     
-    // Check territory proximity
     const bordersUs = faction.territories.some(tid => {
-      const territory = game.territories.get(tid)
+      const territory = state.territories.get(tid)
       return territory?.connectedTerritories.some(cid => 
         other.territories.includes(cid)
       )
     })
     
-    if (bordersUs) {
-      threatLevel += 15
-    }
+    if (bordersUs) threatLevel += 15
     
-    // Check past betrayals
     if (faction.aiState?.memory.betrayals.some(b => b.factionId === otherId)) {
       threatLevel += 25
     }
@@ -123,11 +158,10 @@ function assessThreats(game: GameState, faction: Faction): Map<string, number> {
   return threats
 }
 
-// Calculate military strength
-function calculateMilitaryStrength(game: GameState, factionId: string): number {
+function calculateMilitaryStrength(state: GameState, factionId: string): number {
   let strength = 0
   
-  for (const [armyId, army] of game.armies) {
+  for (const [, army] of state.armies) {
     if (army.ownerId !== factionId) continue
     
     for (const unit of army.units) {
@@ -139,9 +173,8 @@ function calculateMilitaryStrength(game: GameState, factionId: string): number {
   return strength
 }
 
-// Decide on overall strategy
 function decideStrategy(
-  game: GameState,
+  state: GameState,
   faction: Faction,
   threats: Map<string, number>
 ): string {
@@ -149,15 +182,10 @@ function decideStrategy(
   if (!aiState) return 'consolidate'
   
   const weights = aiState.priorities
+  const maxThreat = Math.max(0, ...Array.from(threats.values()))
   
-  // Check for immediate threats
-  const maxThreat = Math.max(...Array.from(threats.values()))
+  if (maxThreat > 70) return 'defend'
   
-  if (maxThreat > 70) {
-    return 'defend'
-  }
-  
-  // Calculate strategy scores
   const scores: Record<string, number> = {
     expand: weights.expansion,
     defend: weights.defense,
@@ -167,9 +195,8 @@ function decideStrategy(
     raid: aiState.personality === 'raider' ? 30 : 10,
   }
   
-  // Adjust based on situation
   const territoryCount = faction.territories.length
-  const totalTerritories = game.territories.size
+  const totalTerritories = state.territories.size
   const controlPercent = territoryCount / totalTerritories
   
   if (controlPercent < 0.1) {
@@ -180,25 +207,21 @@ function decideStrategy(
     scores.expand += 10
   }
   
-  // Check resource levels
   if (faction.resources.gold < 200 || faction.resources.food < 100) {
     scores.consolidate += 25
     scores.raid += 15
   }
   
-  // At war? Prioritize military
   const atWar = faction.relations.some(r => r.status === 'war')
   if (atWar) {
     scores.attack += 30
     scores.defend += 20
   }
   
-  // Find highest scoring strategy
   let bestStrategy = 'consolidate'
   let bestScore = 0
   
   for (const [strategy, score] of Object.entries(scores)) {
-    // Add some randomness
     const finalScore = score + Math.random() * 20
     if (finalScore > bestScore) {
       bestScore = finalScore
@@ -209,89 +232,95 @@ function decideStrategy(
   return bestStrategy
 }
 
-// Execute expansion strategy
-function executeExpansion(game: GameState, faction: Faction): GameState {
-  let updatedGame = { ...game }
-  const updatedTerritories = new Map(game.territories)
-  const updatedFactions = new Map(game.factions)
+function executeExpansion(state: GameState, factionId: string): GameState {
+  const faction = state.factions.get(factionId)
+  if (!faction) return state
   
-  // Find unowned adjacent territories
+  const updatedTerritories = new Map(state.territories)
+  const updatedFactions = new Map(state.factions)
+  
   const unownedAdjacent: Territory[] = []
   
   for (const tid of faction.territories) {
-    const territory = game.territories.get(tid)
+    const territory = state.territories.get(tid)
     if (!territory) continue
     
     for (const adjId of territory.connectedTerritories) {
-      const adj = game.territories.get(adjId)
+      const adj = state.territories.get(adjId)
       if (adj && !adj.ownerId) {
         unownedAdjacent.push(adj)
       }
     }
   }
   
-  // Claim the best unowned territory
   if (unownedAdjacent.length > 0) {
-    // Sort by value (trade route + resources)
     unownedAdjacent.sort((a, b) => b.tradeRouteValue - a.tradeRouteValue)
     
     const target = unownedAdjacent[0]
-    target.ownerId = faction.id
-    updatedTerritories.set(target.id, target)
+    const updatedTarget = { ...target, ownerId: factionId }
+    updatedTerritories.set(target.id, updatedTarget)
     
     const updatedFaction = {
       ...faction,
       territories: [...faction.territories, target.id],
     }
-    updatedFactions.set(faction.id, updatedFaction)
+    updatedFactions.set(factionId, updatedFaction)
     
-    updatedGame = { ...updatedGame, territories: updatedTerritories, factions: updatedFactions }
+    return { ...state, territories: updatedTerritories, factions: updatedFactions }
   }
   
-  return updatedGame
+  return state
 }
 
-// Execute defense strategy
-function executeDefense(game: GameState, faction: Faction): GameState {
-  let updatedGame = { ...game }
-  const updatedArmies = new Map(game.armies)
+function executeDefense(state: GameState, factionId: string): GameState {
+  const faction = state.factions.get(factionId)
+  if (!faction) return state
   
-  // Move armies to threatened territories
+  const updatedArmies = new Map(state.armies)
+  
   const borderTerritories = faction.territories.filter(tid => {
-    const territory = game.territories.get(tid)
+    const territory = state.territories.get(tid)
     return territory?.connectedTerritories.some(adjId => {
-      const adj = game.territories.get(adjId)
-      return adj && adj.ownerId && adj.ownerId !== faction.id
+      const adj = state.territories.get(adjId)
+      return adj && adj.ownerId && adj.ownerId !== factionId
     })
   })
   
-  // Find armies not on borders
   for (const armyId of faction.armies) {
-    const army = game.armies.get(armyId)
-    if (!army || army.destination || army.isSieging) continue
+    const army = state.armies.get(armyId)
+    if (!army || army.targetTerritoryId || army.isSieging || army.inBattle) continue
     
-    // Check if army is on border
-    if (!borderTerritories.includes(army.position)) {
-      // Move to nearest border territory
+    if (!borderTerritories.includes(army.currentTerritoryId)) {
       if (borderTerritories.length > 0) {
         const target = borderTerritories[Math.floor(Math.random() * borderTerritories.length)]
-        const updatedArmy = { ...army, destination: target, movementProgress: 0 }
-        updatedArmies.set(armyId, updatedArmy)
+        const targetTerritory = state.territories.get(target)
+        if (targetTerritory) {
+          const updatedArmy = {
+            ...army,
+            targetTerritoryId: target,
+            targetPosition: targetTerritory.center,
+            movementProgress: 0,
+          }
+          updatedArmies.set(armyId, updatedArmy)
+          break
+        }
       }
     }
   }
   
-  return { ...updatedGame, armies: updatedArmies }
+  return { ...state, armies: updatedArmies }
 }
 
-// Execute attack strategy
-function executeAttack(game: GameState, faction: Faction, threats: Map<string, number>): GameState {
-  let updatedGame = { ...game }
-  const updatedArmies = new Map(game.armies)
-  const updatedTerritories = new Map(game.territories)
-  const updatedFactions = new Map(game.factions)
+function executeAttack(state: GameState, factionId: string, threats: Map<string, number>): GameState {
+  const faction = state.factions.get(factionId)
+  if (!faction) return state
   
-  // Find target faction (at war or hostile)
+  let updatedState = state
+  const updatedArmies = new Map(state.armies)
+  const updatedTerritories = new Map(state.territories)
+  const updatedFactions = new Map(state.factions)
+  
+  // Find target faction
   let targetFactionId: string | null = null
   let bestTarget = -Infinity
   
@@ -302,12 +331,11 @@ function executeAttack(game: GameState, faction: Faction, threats: Map<string, n
     }
     
     if (relation.value < -30) {
-      const targetFaction = game.factions.get(relation.targetId)
+      const targetFaction = state.factions.get(relation.targetId)
       if (targetFaction && !targetFaction.isDefeated) {
-        const ourStrength = calculateMilitaryStrength(game, faction.id)
-        const theirStrength = calculateMilitaryStrength(game, relation.targetId)
+        const ourStrength = calculateMilitaryStrength(state, factionId)
+        const theirStrength = calculateMilitaryStrength(state, relation.targetId)
         
-        // Only attack if we're stronger
         if (ourStrength > theirStrength * 1.2) {
           const score = ourStrength / theirStrength - relation.value / 100
           if (score > bestTarget) {
@@ -319,97 +347,86 @@ function executeAttack(game: GameState, faction: Faction, threats: Map<string, n
     }
   }
   
-  if (!targetFactionId) return game
+  if (!targetFactionId) return state
   
-  // Declare war if not already at war
+  // Declare war if needed
   const relation = faction.relations.find(r => r.targetId === targetFactionId)
   if (relation && relation.status !== 'war') {
-    // Declare war
     const updatedRelations = faction.relations.map(r =>
       r.targetId === targetFactionId
         ? { ...r, status: 'war' as DiplomaticStatus, value: Math.max(-100, r.value - 40) }
         : r
     )
     
-    const updatedFaction = { ...faction, relations: updatedRelations }
-    updatedFactions.set(faction.id, updatedFaction)
+    updatedFactions.set(factionId, { ...faction, relations: updatedRelations })
     
-    // Update target's relations too
-    const targetFaction = game.factions.get(targetFactionId)
+    const targetFaction = state.factions.get(targetFactionId)
     if (targetFaction) {
       const targetRelations = targetFaction.relations.map(r =>
-        r.targetId === faction.id
+        r.targetId === factionId
           ? { ...r, status: 'war' as DiplomaticStatus, value: Math.max(-100, r.value - 40) }
           : r
       )
       updatedFactions.set(targetFactionId, { ...targetFaction, relations: targetRelations })
     }
     
-    // Add war event
     const event: GameEvent = {
       id: uuid(),
-      turn: game.turn,
+      turn: state.time.totalDays,
       type: 'war_declared',
       title: 'War Declared!',
       description: `${faction.name} has declared war on ${targetFaction?.name}!`,
-      factionIds: [faction.id, targetFactionId],
+      factionIds: [factionId, targetFactionId],
       isRead: false,
     }
     
-    updatedGame = {
-      ...updatedGame,
+    updatedState = {
+      ...state,
       factions: updatedFactions,
-      eventLog: [...game.eventLog, event],
+      eventLog: [...state.eventLog, event],
     }
   }
   
-  // Find enemy territories to attack
-  const targetFaction = game.factions.get(targetFactionId)
-  if (!targetFaction) return updatedGame
+  // Find enemy territory to attack
+  const targetFaction = updatedState.factions.get(targetFactionId)
+  if (!targetFaction) return updatedState
   
-  const enemyTerritories = targetFaction.territories
-    .map(tid => game.territories.get(tid))
-    .filter((t): t is Territory => t !== undefined)
-  
-  // Find adjacent enemy territories
   const attackableTargets: Territory[] = []
   
   for (const tid of faction.territories) {
-    const ourTerritory = game.territories.get(tid)
+    const ourTerritory = state.territories.get(tid)
     if (!ourTerritory) continue
     
     for (const adjId of ourTerritory.connectedTerritories) {
-      const adj = enemyTerritories.find(t => t.id === adjId)
-      if (adj) {
-        attackableTargets.push(adj)
+      if (targetFaction.territories.includes(adjId)) {
+        const adj = state.territories.get(adjId)
+        if (adj) attackableTargets.push(adj)
       }
     }
   }
   
-  if (attackableTargets.length === 0) return updatedGame
+  if (attackableTargets.length === 0) return updatedState
   
-  // Sort by weakness (lower fortification = easier)
   attackableTargets.sort((a, b) => a.fortificationLevel - b.fortificationLevel)
-  
   const target = attackableTargets[0]
   
-  // Move armies to attack
+  // Move armies toward target
   for (const armyId of faction.armies) {
-    const army = game.armies.get(armyId)
-    if (!army || army.isSieging) continue
+    const army = state.armies.get(armyId)
+    if (!army || army.isSieging || army.inBattle) continue
     
-    // Check if army is adjacent to target
-    const armyTerritory = game.territories.get(army.position)
+    const armyTerritory = state.territories.get(army.currentTerritoryId)
     if (armyTerritory?.connectedTerritories.includes(target.id)) {
-      // Start siege or attack
+      // Start siege
       if (!target.siegeState) {
         const siegeState: SiegeState = {
-          attackerId: faction.id,
+          attackerId: factionId,
           attackingArmyId: armyId,
           defenderId: target.ownerId!,
           territoryId: target.id,
           phase: 'approach',
-          turnsElapsed: 0,
+          startDay: state.time.totalDays,
+          daysElapsed: 0,
           wallIntegrity: 100,
           defenderSupplies: target.supplies,
           defenderMorale: target.morale,
@@ -417,258 +434,181 @@ function executeAttack(game: GameState, faction: Faction, threats: Map<string, n
           defenderCasualties: 0,
           breachPoints: 0,
           reliefForceExpected: false,
+          lastTickDay: state.time.totalDays,
         }
         
-        const updatedArmy = { ...army, isSieging: true, destination: null }
+        const updatedArmy = { ...army, isSieging: true, targetTerritoryId: null }
         updatedArmies.set(armyId, updatedArmy)
         
         const updatedTarget = { ...target, siegeState }
         updatedTerritories.set(target.id, updatedTarget)
         
-        break // Only one siege at a time
+        break
       }
-    } else if (!army.destination) {
+    } else if (!army.targetTerritoryId) {
       // Move toward target
-      // Find adjacent territory to target that we own
       const stagingPoint = faction.territories.find(tid => {
-        const t = game.territories.get(tid)
+        const t = state.territories.get(tid)
         return t?.connectedTerritories.includes(target.id)
       })
       
       if (stagingPoint) {
-        const updatedArmy = { ...army, destination: stagingPoint, movementProgress: 0 }
-        updatedArmies.set(armyId, updatedArmy)
+        const stagingTerritory = state.territories.get(stagingPoint)
+        if (stagingTerritory) {
+          const updatedArmy = {
+            ...army,
+            targetTerritoryId: stagingPoint,
+            targetPosition: stagingTerritory.center,
+            movementProgress: 0,
+          }
+          updatedArmies.set(armyId, updatedArmy)
+        }
       }
     }
   }
   
   return {
-    ...updatedGame,
+    ...updatedState,
     armies: updatedArmies,
     territories: updatedTerritories,
-    factions: updatedFactions,
   }
 }
 
-// Execute raid strategy
-function executeRaid(game: GameState, faction: Faction): GameState {
-  let updatedGame = { ...game }
-  const updatedArmies = new Map(game.armies)
-  const updatedFactions = new Map(game.factions)
+function executeRaid(state: GameState, factionId: string): GameState {
+  const faction = state.factions.get(factionId)
+  if (!faction) return state
   
-  // Find enemy territories to raid
+  const updatedFactions = new Map(state.factions)
+  
+  // Find adjacent enemy territories
   const enemyTerritories: Territory[] = []
   
-  for (const [tid, territory] of game.territories) {
-    if (territory.ownerId && territory.ownerId !== faction.id) {
-      // Check if adjacent
+  for (const [tid, territory] of state.territories) {
+    if (territory.ownerId && territory.ownerId !== factionId) {
       const isAdjacent = faction.territories.some(ourTid => {
-        const our = game.territories.get(ourTid)
+        const our = state.territories.get(ourTid)
         return our?.connectedTerritories.includes(tid)
       })
       
-      if (isAdjacent) {
-        enemyTerritories.push(territory)
-      }
+      if (isAdjacent) enemyTerritories.push(territory)
     }
   }
   
-  if (enemyTerritories.length === 0) return game
+  if (enemyTerritories.length === 0) return state
   
-  // Pick weakest target
+  // Raid weakest target
   enemyTerritories.sort((a, b) => a.fortificationLevel - b.fortificationLevel)
   const target = enemyTerritories[0]
   
-  // Find army to raid with
-  for (const armyId of faction.armies) {
-    const army = game.armies.get(armyId)
-    if (!army || army.isSieging || army.isRaiding) continue
-    
-    // Check if has light cavalry (good for raiding)
-    const hasRaiders = army.units.some(u => u.type === 'light_cavalry' && u.count > 20)
-    
-    if (hasRaiders) {
-      // Start raid
-      const updatedArmy = { ...army, isRaiding: true, destination: target.id }
-      updatedArmies.set(armyId, updatedArmy)
-      
-      // Raiding damages relations
-      const targetOwner = game.factions.get(target.ownerId!)
-      if (targetOwner) {
-        const targetRelations = targetOwner.relations.map(r =>
-          r.targetId === faction.id
-            ? { ...r, value: Math.max(-100, r.value - 15) }
-            : r
-        )
-        updatedFactions.set(targetOwner.id, { ...targetOwner, relations: targetRelations })
-      }
-      
-      // Gain resources from raid
-      const raidGold = Math.floor(20 + Math.random() * 50)
-      const raidFood = Math.floor(30 + Math.random() * 70)
-      
-      const updatedFaction = {
-        ...faction,
-        resources: {
-          ...faction.resources,
-          gold: faction.resources.gold + raidGold,
-          food: faction.resources.food + raidFood,
-        },
-      }
-      updatedFactions.set(faction.id, updatedFaction)
-      
-      break
-    }
-  }
-  
-  return { ...updatedGame, armies: updatedArmies, factions: updatedFactions }
-}
-
-// Execute consolidation strategy
-function executeConsolidation(game: GameState, faction: Faction): GameState {
-  // Focus on building and economy - handled in resource processing
-  return game
-}
-
-// Execute diplomacy strategy
-function executeDiplomacy(game: GameState, faction: Faction): GameState {
-  let updatedGame = { ...game }
-  const updatedFactions = new Map(game.factions)
-  
-  // Find factions to improve relations with
-  for (const relation of faction.relations) {
-    if (relation.status === 'war') continue
-    
-    const other = game.factions.get(relation.targetId)
-    if (!other || other.isDefeated || other.isPlayer) continue
-    
-    // Check if we have common enemies
-    const ourEnemies = faction.relations
-      .filter(r => r.value < -30)
-      .map(r => r.targetId)
-    
-    const theirEnemies = other.relations
-      .filter(r => r.value < -30)
-      .map(r => r.targetId)
-    
-    const commonEnemies = ourEnemies.filter(e => theirEnemies.includes(e))
-    
-    if (commonEnemies.length > 0 && relation.value > -20) {
-      // Improve relations
-      const updatedRelations = faction.relations.map(r =>
-        r.targetId === relation.targetId
-          ? { ...r, value: Math.min(100, r.value + 5) }
-          : r
-      )
-      
-      updatedFactions.set(faction.id, { ...faction, relations: updatedRelations })
-      
-      // Mirror improvement
-      const theirRelations = other.relations.map(r =>
-        r.targetId === faction.id
-          ? { ...r, value: Math.min(100, r.value + 5) }
-          : r
-      )
-      
-      updatedFactions.set(other.id, { ...other, relations: theirRelations })
-    }
-  }
-  
-  return { ...updatedGame, factions: updatedFactions }
-}
-
-// Process AI resource collection
-function processAIResources(game: GameState, faction: Faction): GameState {
-  const updatedFactions = new Map(game.factions)
-  
-  let totalProduction = {
-    gold: 0,
-    food: 0,
-    wood: 0,
-    stone: 0,
-    iron: 0,
-    tradeGoods: 0,
-  }
-  
-  // Sum production from all territories
-  for (const tid of faction.territories) {
-    const territory = game.territories.get(tid)
-    if (!territory) continue
-    
-    totalProduction.gold += territory.resourceProduction.gold
-    totalProduction.food += territory.resourceProduction.food
-    totalProduction.wood += territory.resourceProduction.wood
-    totalProduction.stone += territory.resourceProduction.stone
-    totalProduction.iron += territory.resourceProduction.iron
-    totalProduction.tradeGoods += territory.resourceProduction.tradeGoods
-    
-    // Trade route bonus
-    totalProduction.gold += Math.floor(territory.tradeRouteValue / 5)
-  }
-  
-  // Apply difficulty bonus
-  const difficultyMod = DIFFICULTY_MODIFIERS[game.settings.difficulty]
-  totalProduction.gold = Math.floor(totalProduction.gold * difficultyMod.aiResourceBonus)
-  totalProduction.food = Math.floor(totalProduction.food * difficultyMod.aiResourceBonus)
+  // Gain resources from raid
+  const raidGold = Math.floor(10 + Math.random() * 30)
+  const raidFood = Math.floor(15 + Math.random() * 40)
   
   const updatedFaction = {
     ...faction,
     resources: {
-      gold: faction.resources.gold + totalProduction.gold,
-      food: faction.resources.food + totalProduction.food,
-      wood: faction.resources.wood + totalProduction.wood,
-      stone: faction.resources.stone + totalProduction.stone,
-      iron: faction.resources.iron + totalProduction.iron,
-      tradeGoods: faction.resources.tradeGoods + totalProduction.tradeGoods,
+      ...faction.resources,
+      gold: faction.resources.gold + raidGold,
+      food: faction.resources.food + raidFood,
     },
   }
+  updatedFactions.set(factionId, updatedFaction)
   
-  updatedFactions.set(faction.id, updatedFaction)
+  // Damage relations with target
+  const targetOwner = state.factions.get(target.ownerId!)
+  if (targetOwner) {
+    const targetRelations = targetOwner.relations.map(r =>
+      r.targetId === factionId
+        ? { ...r, value: Math.max(-100, r.value - 10) }
+        : r
+    )
+    updatedFactions.set(targetOwner.id, { ...targetOwner, relations: targetRelations })
+  }
   
-  return { ...game, factions: updatedFactions }
+  return { ...state, factions: updatedFactions }
 }
 
-// Process AI recruitment
-function processAIRecruitment(game: GameState, faction: Faction): GameState {
-  const updatedArmies = new Map(game.armies)
-  const updatedFactions = new Map(game.factions)
+function executeConsolidation(state: GameState, factionId: string): GameState {
+  // Focus on building economy - handled elsewhere
+  return state
+}
+
+function executeDiplomacy(state: GameState, factionId: string): GameState {
+  const faction = state.factions.get(factionId)
+  if (!faction) return state
   
-  // Check if can afford units
-  const resources = faction.resources
+  const updatedFactions = new Map(state.factions)
   
-  for (const armyId of faction.armies) {
-    const army = game.armies.get(armyId)
-    if (!army) continue
+  for (const relation of faction.relations) {
+    if (relation.status === 'war') continue
     
-    // Calculate current army size
-    const armySize = army.units.reduce((sum, u) => sum + u.count, 0)
+    const other = state.factions.get(relation.targetId)
+    if (!other || other.isDefeated || other.isPlayer) continue
     
-    // Recruit if army is small and we have resources
-    if (armySize < 300 && resources.gold > 200 && resources.food > 150) {
-      // Recruit infantry
-      const infantryToRecruit = Math.min(50, Math.floor(resources.gold / 30))
+    // Look for common enemies
+    const ourEnemies = faction.relations.filter(r => r.value < -30).map(r => r.targetId)
+    const theirEnemies = other.relations.filter(r => r.value < -30).map(r => r.targetId)
+    const commonEnemies = ourEnemies.filter(e => theirEnemies.includes(e))
+    
+    if (commonEnemies.length > 0 && relation.value > -20) {
+      const updatedRelations = faction.relations.map(r =>
+        r.targetId === relation.targetId
+          ? { ...r, value: Math.min(100, r.value + 3) }
+          : r
+      )
+      updatedFactions.set(factionId, { ...faction, relations: updatedRelations })
       
-      const existingInfantry = army.units.find(u => u.type === 'infantry')
-      if (existingInfantry) {
-        existingInfantry.count += infantryToRecruit
-      } else {
-        army.units.push({ type: 'infantry', count: infantryToRecruit, morale: 70, experience: 0 })
-      }
-      
-      // Deduct costs
-      const cost = infantryToRecruit * 30
-      const updatedFaction = {
-        ...updatedFactions.get(faction.id) || faction,
-        resources: {
-          ...resources,
-          gold: resources.gold - cost,
-          iron: resources.iron - infantryToRecruit * 5,
-        },
-      }
-      updatedFactions.set(faction.id, updatedFaction)
-      updatedArmies.set(armyId, { ...army })
+      const theirRelations = other.relations.map(r =>
+        r.targetId === factionId
+          ? { ...r, value: Math.min(100, r.value + 3) }
+          : r
+      )
+      updatedFactions.set(other.id, { ...other, relations: theirRelations })
     }
   }
   
-  return { ...game, armies: updatedArmies, factions: updatedFactions }
+  return { ...state, factions: updatedFactions }
+}
+
+function processAIEconomy(state: GameState, factionId: string): GameState {
+  const faction = state.factions.get(factionId)
+  if (!faction) return state
+  
+  const updatedArmies = new Map(state.armies)
+  const updatedFactions = new Map(state.factions)
+  
+  // Count total troops
+  let totalTroops = 0
+  for (const armyId of faction.armies) {
+    const army = state.armies.get(armyId)
+    if (army) {
+      totalTroops += army.units.reduce((sum, u) => sum + u.count, 0)
+    }
+  }
+  
+  // Recruit if we have resources and few troops
+  if (totalTroops < faction.territories.length * 15 && faction.resources.gold > 150) {
+    const army = faction.armies.length > 0 ? state.armies.get(faction.armies[0]) : null
+    
+    if (army) {
+      const toRecruit = Math.min(10, Math.floor(faction.resources.gold / 20))
+      const existingInfantry = army.units.find(u => u.type === 'infantry')
+      
+      const updatedUnits = existingInfantry
+        ? army.units.map(u => u.type === 'infantry' ? { ...u, count: u.count + toRecruit } : u)
+        : [...army.units, { type: 'infantry' as const, count: toRecruit, morale: 80, experience: 0 }]
+      
+      updatedArmies.set(army.id, { ...army, units: updatedUnits })
+      
+      const cost = toRecruit * 15
+      updatedFactions.set(factionId, {
+        ...faction,
+        resources: { ...faction.resources, gold: faction.resources.gold - cost },
+      })
+      
+      return { ...state, armies: updatedArmies, factions: updatedFactions }
+    }
+  }
+  
+  return state
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useGameStore } from "@/lib/game/store"
-import { FACTION_CONFIG, FACTION_TEMPLATES } from "@/lib/game/constants"
+import { FACTION_CONFIG, FACTION_DEFINITIONS } from "@/lib/game/constants"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   Select,
@@ -28,16 +29,7 @@ import {
   Play,
   Crown,
   Sword,
-  Coins,
-  Shield,
-  Users
 } from "lucide-react"
-
-interface NewGameDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onStartGame: (settings: GameSettings) => void
-}
 
 export interface GameSettings {
   playerFaction: string
@@ -46,24 +38,33 @@ export interface GameSettings {
   mapSize: 'small' | 'medium' | 'large'
 }
 
-export function NewGameDialog({ open, onOpenChange, onStartGame }: NewGameDialogProps) {
+export function NewGameDialog() {
+  const [open, setOpen] = useState(false)
+  const startNewGame = useGameStore(state => state.startNewGame)
+  
   const [settings, setSettings] = useState<GameSettings>({
-    playerFaction: 'frankish_kingdom',
+    playerFaction: 'frankish',
     numOpponents: 6,
     difficulty: 'normal',
     mapSize: 'medium'
   })
 
-  const factionList = Object.entries(FACTION_CONFIG)
   const selectedFactionConfig = FACTION_CONFIG[settings.playerFaction]
 
   const handleStartGame = () => {
-    onStartGame(settings)
-    onOpenChange(false)
+    startNewGame(settings)
+    setOpen(false)
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="lg" className="text-lg px-8 py-6">
+          <Play className="mr-2 h-5 w-5" />
+          Start New Campaign
+        </Button>
+      </DialogTrigger>
+      
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-2xl flex items-center gap-2">
@@ -81,12 +82,12 @@ export function NewGameDialog({ open, onOpenChange, onStartGame }: NewGameDialog
             <div className="space-y-3">
               <Label className="text-base font-semibold">Choose Your Faction</Label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {factionList.map(([id, config]) => (
+                {FACTION_DEFINITIONS.map((faction) => (
                   <button
-                    key={id}
-                    onClick={() => setSettings(s => ({ ...s, playerFaction: id }))}
+                    key={faction.id}
+                    onClick={() => setSettings(s => ({ ...s, playerFaction: faction.id }))}
                     className={`p-3 rounded-lg border-2 text-left transition-all ${
-                      settings.playerFaction === id 
+                      settings.playerFaction === faction.id 
                         ? 'border-primary bg-primary/10' 
                         : 'border-border hover:border-primary/50'
                     }`}
@@ -94,11 +95,11 @@ export function NewGameDialog({ open, onOpenChange, onStartGame }: NewGameDialog
                     <div className="flex items-center gap-2 mb-1">
                       <div 
                         className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: config.color }}
+                        style={{ backgroundColor: faction.color }}
                       />
-                      <span className="font-medium text-sm text-foreground">{config.name}</span>
+                      <span className="font-medium text-sm text-foreground">{faction.name}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground capitalize">{config.personality}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{faction.personality}</p>
                   </button>
                 ))}
               </div>
@@ -122,11 +123,6 @@ export function NewGameDialog({ open, onOpenChange, onStartGame }: NewGameDialog
                       <Sword className="h-3 w-3 mr-1" />
                       {selectedFactionConfig.strengths[0]}
                     </Badge>
-                    {selectedFactionConfig.strengths[1] && (
-                      <Badge variant="secondary" className="text-xs">
-                        {selectedFactionConfig.strengths[1]}
-                      </Badge>
-                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs text-orange-500 border-orange-500">
@@ -210,7 +206,7 @@ export function NewGameDialog({ open, onOpenChange, onStartGame }: NewGameDialog
         </ScrollArea>
 
         <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
           <Button onClick={handleStartGame} className="gap-2">

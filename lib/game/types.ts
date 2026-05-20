@@ -107,14 +107,18 @@ export interface Army {
   ownerId: string
   commanderId: string | null
   units: UnitStack[]
-  position: string        // Territory ID
-  destination: string | null
-  movementProgress: number // 0-100
+  position: [number, number]      // Current lat/lng position (for smooth movement)
+  currentTerritoryId: string      // Territory the army is in
+  targetTerritoryId: string | null
+  targetPosition: [number, number] | null
+  movementProgress: number        // 0-1 interpolation progress
+  movementSpeed: number           // Units per second based on terrain
   supplies: number
   maxSupplies: number
   morale: number
   isRaiding: boolean
   isSieging: boolean
+  inBattle: string | null         // Battle ID if in combat
 }
 
 export interface Commander {
@@ -167,14 +171,16 @@ export interface SiegeState {
   defenderId: string
   territoryId: string
   phase: SiegePhase
-  turnsElapsed: number
-  wallIntegrity: number       // 0-100
+  startDay: number              // Game day when siege started
+  daysElapsed: number
+  wallIntegrity: number         // 0-100
   defenderSupplies: number
   defenderMorale: number
   attackerCasualties: number
   defenderCasualties: number
-  breachPoints: number        // Accumulates from sapping/bombardment
+  breachPoints: number          // Accumulates from sapping/bombardment
   reliefForceExpected: boolean
+  lastTickDay: number           // Last day siege was processed
 }
 
 // ==================== DIPLOMACY ====================
@@ -351,7 +357,69 @@ export interface ProposalValue {
   total: number
 }
 
+// ==================== BATTLE SYSTEM ====================
+
+export type BattlePhase = 'pending' | 'player_command' | 'resolving' | 'complete'
+
+export type BattleFormation = 'shield_wall' | 'skirmish' | 'charge' | 'defensive'
+export type BattleFocus = 'infantry' | 'archers' | 'cavalry' | 'commander'
+export type BattleOrder = 'flank' | 'feigned_retreat' | 'hold_ground' | 'all_out_attack'
+
+export interface Battle {
+  id: string
+  attackerArmyId: string
+  defenderArmyId: string
+  territoryId: string
+  phase: BattlePhase
+  startTime: number           // Real timestamp when battle started
+  timeRemaining: number       // Seconds until auto-resolve
+  playerIsAttacker: boolean
+  playerIsDefender: boolean
+  
+  // Player commands (if attending)
+  playerFormation?: BattleFormation
+  playerFocus?: BattleFocus
+  playerOrder?: BattleOrder
+  
+  // Battle progress
+  attackerCasualties: number
+  defenderCasualties: number
+  attackerMorale: number
+  defenderMorale: number
+  rounds: number
+  
+  // Result (after resolution)
+  result?: 'attacker_victory' | 'defender_victory' | 'draw' | 'retreat'
+  loot?: Partial<Resources>
+}
+
 // ==================== GAME STATE ====================
+
+export interface TimeState {
+  day: number                 // Current day (1-365)
+  season: 'spring' | 'summer' | 'autumn' | 'winter'
+  year: number
+  totalDays: number           // Total days elapsed
+  lastTickTime: number        // Last real-world timestamp
+  accumulatedTime: number     // Accumulated ms since last day tick
+}
+
+export interface GameState {
+  settings: GameSettings
+  time: TimeState
+  speed: GameSpeed
+  isRunning: boolean          // Is the game loop active
+  selectedTerritoryId: string | null
+  selectedArmyId: string | null
+  factions: Map<string, Faction>
+  territories: Map<string, Territory>
+  armies: Map<string, Army>
+  commanders: Map<string, Commander>
+  activeBattles: Map<string, Battle>
+  activeNegotiation: NegotiationState | null
+  eventLog: GameEvent[]
+  victoryCondition: VictoryCondition | null
+}
 
 export interface GameSettings {
   mapRegion: 'europe' | 'mediterranean' | 'middle_east'
@@ -359,7 +427,7 @@ export interface GameSettings {
   aiCount: number
   startingResources: 'scarce' | 'normal' | 'abundant'
   fogOfWar: boolean
-  gameSpeed: 'slow' | 'normal' | 'fast'
+  battleTimer: 30 | 45 | 60 | 90  // Seconds before auto-resolve
 }
 
 export interface GameState {
@@ -414,17 +482,27 @@ export type VictoryCondition =
 
 // ==================== UI STATE ====================
 
+export interface BattleNotification {
+  battleId: string
+  title: string
+  location: string
+  timeRemaining: number
+  isUrgent: boolean
+}
+
 export interface UIState {
-  activePanel: 'map' | 'army' | 'diplomacy' | 'economy' | 'commanders'
+  activePanel: 'territory' | 'army' | 'diplomacy' | 'economy' | 'commanders'
   showNewGameDialog: boolean
   showSiegeDialog: boolean
   showTradeDialog: boolean
   showDiplomacyDialog: boolean
   showNegotiationChat: boolean
+  showBattleCommand: string | null  // Battle ID or null
   selectedFactionForDiplomacy: string | null
   mapCenter: [number, number]
   mapZoom: number
   notifications: Notification[]
+  battleNotifications: BattleNotification[]
 }
 
 export interface Notification {
