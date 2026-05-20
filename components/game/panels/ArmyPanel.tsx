@@ -14,10 +14,10 @@ import {
   Target,
   ChevronRight,
   Footprints,
-  Horse,
   Crosshair,
   Anvil,
-  Star
+  Star,
+  Waypoints
 } from "lucide-react"
 import type { Army, Commander } from "@/lib/game/types"
 
@@ -134,7 +134,7 @@ function ArmyCard({
           <span>{army.units.infantry}</span>
         </div>
         <div className="flex items-center gap-1 text-muted-foreground">
-          <Horse className="h-3 w-3" />
+          <Waypoints className="h-3 w-3" />
           <span>{army.units.cavalry}</span>
         </div>
         <div className="flex items-center gap-1 text-muted-foreground">

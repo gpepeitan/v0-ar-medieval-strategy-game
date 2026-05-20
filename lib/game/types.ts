@@ -395,6 +395,16 @@ export interface Battle {
 
 // ==================== GAME STATE ====================
 
+export type GameSpeed = 0 | 1 | 2 | 3 | 4  // 0=pause, 1=1x, 2=2x, 3=5x, 4=10x
+
+export const GAME_SPEED_MULTIPLIERS: Record<GameSpeed, number> = {
+  0: 0,    // Paused
+  1: 1,    // 1x - 1 second = 1 day
+  2: 2,    // 2x
+  3: 5,    // 5x
+  4: 10,   // 10x
+}
+
 export interface TimeState {
   day: number                 // Current day (1-365)
   season: 'spring' | 'summer' | 'autumn' | 'winter'
@@ -430,27 +440,9 @@ export interface GameSettings {
   battleTimer: 30 | 45 | 60 | 90  // Seconds before auto-resolve
 }
 
-export interface GameState {
-  settings: GameSettings
-  turn: number
-  season: 'spring' | 'summer' | 'autumn' | 'winter'
-  year: number
-  isPaused: boolean
-  isPlayerTurn: boolean
-  selectedTerritoryId: string | null
-  selectedArmyId: string | null
-  factions: Map<string, Faction>
-  territories: Map<string, Territory>
-  armies: Map<string, Army>
-  commanders: Map<string, Commander>
-  activeNegotiation: NegotiationState | null
-  eventLog: GameEvent[]
-  victoryCondition: VictoryCondition | null
-}
-
 export interface GameEvent {
   id: string
-  turn: number
+  day: number
   type: EventType
   title: string
   description: string

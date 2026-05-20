@@ -58,6 +58,7 @@ interface GameStore {
   pauseGame: () => void
   resumeGame: () => void
   setSpeed: (speed: GameSpeed) => void
+  togglePause: () => void
   
   // Real-time state sync
   syncGameState: (state: GameState) => void
@@ -270,6 +271,16 @@ export const useGameStore = create<GameStore>()((set, get) => {
       if (!game) return
       
       const newGame = { ...game, speed, isRunning: speed > 0 }
+      set({ game: newGame })
+      updateGameState(newGame)
+    },
+    
+    togglePause: () => {
+      const { game } = get()
+      if (!game) return
+      
+      const newSpeed = game.speed === 0 ? 1 : 0
+      const newGame = { ...game, speed: newSpeed as GameSpeed, isRunning: newSpeed > 0 }
       set({ game: newGame })
       updateGameState(newGame)
     },

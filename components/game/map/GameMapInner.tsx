@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { MapContainer, TileLayer, Polygon, Tooltip, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Polygon, CircleMarker, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useGameStore } from '@/lib/game/store'
-import { Territory, Faction } from '@/lib/game/types'
-import { MAP_REGIONS } from '@/lib/game/constants'
+import { Territory, Army, Battle } from '@/lib/game/types'
+import { MAP_REGIONS, FACTION_CONFIG } from '@/lib/game/constants'
 
 // Fix leaflet default markers
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl
@@ -108,10 +108,110 @@ function TerritoryPolygon({ territory }: { territory: Territory }) {
   )
 }
 
-// Army marker component
-function ArmyMarkers() {
+// Single army marker with smooth position updates
+function ArmyMarker({ army }: { army: Army }) {
   const game = useGameStore(state => state.game)
   const selectArmy = useGameStore(state => state.selectArmy)
+  
+  if (!game) return null
+  
+  const owner = game.factions.get(army.ownerId)
+  if (!owner) return null
+  
+  const unitCount = army.units.reduce((sum, u) => sum + u.count, 0)
+  const isSelected = game.selectedArmyId === army.id
+  const isMoving = army.targetTerritoryId !== null
+  const isInBattle = army.inBattle !== null
+  
+  // Calculate marker size based on army size
+  const baseSize = 8
+  const sizeBonus = Math.min(Math.floor(unitCount / 500), 6)
+  const markerSize = baseSize + sizeBonus
+  
+  return (
+    <>
+      {/* Movement path line */}
+      {isMoving && army.targetPosition && (
+        <Polyline
+          positions={[army.position, army.targetPosition]}
+          pathOptions={{
+            color: owner.color,
+            weight: 2,
+            dashArray: '5, 10',
+            opacity: 0.6,
+          }}
+        />
+      )}
+      
+      {/* Army marker */}
+      <CircleMarker
+        center={army.position}
+        radius={markerSize}
+        pathOptions={{
+          color: isSelected ? '#fbbf24' : (isInBattle ? '#ef4444' : '#1e293b'),
+          weight: isSelected ? 3 : 2,
+          fillColor: owner.color,
+          fillOpacity: 0.9,
+        }}
+        eventHandlers={{
+          click: (e) => {
+            L.DomEvent.stopPropagation(e)
+            selectArmy(army.id)
+          },
+        }}
+      >
+        <Tooltip 
+          direction="top" 
+          offset={[0, -10]} 
+          opacity={0.95}
+          permanent={false}
+        >
+          <div className="p-2 min-w-[140px]">
+            <div className="font-bold text-sm text-slate-100">{army.name}</div>
+            <div className="text-xs text-slate-300">{owner.name}</div>
+            <div className="text-xs text-slate-400 mt-1">
+              {unitCount.toLocaleString()} troops
+            </div>
+            <div className="text-xs text-slate-400">
+              Morale: {Math.round(army.morale)}%
+            </div>
+            {army.isSieging && (
+              <div className="text-xs text-orange-400 mt-1">Besieging</div>
+            )}
+            {isInBattle && (
+              <div className="text-xs text-red-400 mt-1 animate-pulse">In Battle!</div>
+            )}
+            {isMoving && (
+              <div className="text-xs text-blue-400 mt-1">
+                Moving ({Math.round(army.movementProgress * 100)}%)
+              </div>
+            )}
+          </div>
+        </Tooltip>
+      </CircleMarker>
+      
+      {/* Battle indicator */}
+      {isInBattle && (
+        <CircleMarker
+          center={army.position}
+          radius={markerSize + 4}
+          pathOptions={{
+            color: '#ef4444',
+            weight: 2,
+            fillColor: 'transparent',
+            fillOpacity: 0,
+            dashArray: '3, 3',
+          }}
+          className="animate-pulse"
+        />
+      )}
+    </>
+  )
+}
+
+// Army markers container
+function ArmyMarkers() {
+  const game = useGameStore(state => state.game)
   
   if (!game) return null
   
@@ -119,62 +219,84 @@ function ArmyMarkers() {
   
   return (
     <>
-      {armies.map(army => {
-        const territory = game.territories.get(army.position)
-        const owner = game.factions.get(army.ownerId)
-        
-        if (!territory || !owner) return null
-        
-        const unitCount = army.units.reduce((sum, u) => sum + u.count, 0)
-        const isSelected = game.selectedArmyId === army.id
+      {armies.map(army => (
+        <ArmyMarker key={army.id} army={army} />
+      ))}
+    </>
+  )
+}
+
+// Battle indicators on the map
+function BattleIndicators() {
+  const game = useGameStore(state => state.game)
+  
+  if (!game) return null
+  
+  const battles = Array.from(game.activeBattles.values())
+  
+  return (
+    <>
+      {battles.map(battle => {
+        const attackerArmy = game.armies.get(battle.attackerArmyId)
+        if (!attackerArmy) return null
         
         return (
-          <Polygon
-            key={army.id}
-            positions={[
-              [territory.center[0] + 0.3, territory.center[1] - 0.3],
-              [territory.center[0] + 0.3, territory.center[1] + 0.3],
-              [territory.center[0] - 0.3, territory.center[1] + 0.3],
-              [territory.center[0] - 0.3, territory.center[1] - 0.3],
-            ]}
+          <CircleMarker
+            key={battle.id}
+            center={attackerArmy.position}
+            radius={20}
             pathOptions={{
-              color: isSelected ? '#fbbf24' : owner.color,
-              weight: isSelected ? 3 : 2,
-              fillColor: owner.color,
-              fillOpacity: 0.9,
-            }}
-            eventHandlers={{
-              click: (e) => {
-                e.originalEvent.stopPropagation()
-                selectArmy(army.id)
-              },
+              color: '#ef4444',
+              weight: 3,
+              fillColor: '#ef4444',
+              fillOpacity: 0.2,
+              dashArray: '5, 5',
             }}
           >
-            <Tooltip 
-              direction="top" 
-              offset={[0, -10]} 
-              opacity={0.95}
-              permanent={false}
-            >
-              <div className="p-2 min-w-[140px]">
-                <div className="font-bold text-sm text-slate-100">{army.name}</div>
-                <div className="text-xs text-slate-300">{owner.name}</div>
-                <div className="text-xs text-slate-400 mt-1">
-                  {unitCount.toLocaleString()} troops
-                </div>
-                {army.isSieging && (
-                  <div className="text-xs text-red-400 mt-1">Besieging</div>
-                )}
-                {army.destination && (
-                  <div className="text-xs text-blue-400 mt-1">
-                    Moving ({army.movementProgress}%)
-                  </div>
-                )}
+            <Tooltip direction="top" permanent>
+              <div className="text-xs font-bold text-red-500">
+                BATTLE! ({Math.round(battle.timeRemaining)}s)
               </div>
             </Tooltip>
-          </Polygon>
+          </CircleMarker>
         )
       })}
+    </>
+  )
+}
+
+// Siege indicators
+function SiegeIndicators() {
+  const game = useGameStore(state => state.game)
+  
+  if (!game) return null
+  
+  const territoriesUnderSiege = Array.from(game.territories.values())
+    .filter(t => t.siegeState !== null)
+  
+  return (
+    <>
+      {territoriesUnderSiege.map(territory => (
+        <CircleMarker
+          key={`siege-${territory.id}`}
+          center={territory.center}
+          radius={15}
+          pathOptions={{
+            color: '#f97316',
+            weight: 2,
+            fillColor: '#f97316',
+            fillOpacity: 0.3,
+          }}
+        >
+          <Tooltip direction="top">
+            <div className="text-xs">
+              <span className="font-bold text-orange-400">Siege</span>
+              <br />
+              Day {territory.siegeState?.daysElapsed || 0}
+            </div>
+          </Tooltip>
+        </CircleMarker>
+      ))}
     </>
   )
 }
@@ -211,11 +333,19 @@ export function GameMapInner() {
         
         <MapEventHandler />
         
+        {/* Territory polygons */}
         {territories.map(territory => (
           <TerritoryPolygon key={territory.id} territory={territory} />
         ))}
         
+        {/* Siege indicators (under armies) */}
+        <SiegeIndicators />
+        
+        {/* Army markers with real-time positions */}
         <ArmyMarkers />
+        
+        {/* Battle indicators (on top) */}
+        <BattleIndicators />
       </MapContainer>
       
       {/* Map Legend */}
@@ -237,6 +367,13 @@ export function GameMapInner() {
                 </span>
               </div>
             ))}
+        </div>
+      </div>
+      
+      {/* Speed indicator */}
+      <div className="absolute top-4 left-4 bg-slate-900/90 backdrop-blur-sm border border-slate-700 rounded-lg px-3 py-2 z-[1000]">
+        <div className="text-xs text-slate-400">
+          Day {game.time.day} | {game.time.season} | Year {game.time.year}
         </div>
       </div>
     </div>
