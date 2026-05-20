@@ -52,7 +52,14 @@ export function NewGameDialog() {
   const selectedFactionConfig = FACTION_CONFIG[settings.playerFaction]
 
   const handleStartGame = () => {
-    startNewGame(settings)
+    startNewGame({
+      mapRegion: 'europe',
+      difficulty: settings.difficulty,
+      aiCount: settings.numOpponents,
+      startingResources: 'normal',
+      fogOfWar: false,
+      battleTimer: 45,
+    }, settings.playerFaction)
     setOpen(false)
   }
 

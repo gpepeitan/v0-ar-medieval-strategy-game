@@ -31,14 +31,14 @@ export function GameLayout() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left Side Panel */}
         <SidePanel side="left">
-          {ui.activePanel === 'map' && game.selectedTerritoryId && (
-            <TerritoryPanel territoryId={game.selectedTerritoryId} />
+          {ui.activePanel === 'territory' && game.selectedTerritoryId && (
+            <TerritoryPanel />
           )}
-          {ui.activePanel === 'map' && game.selectedArmyId && !game.selectedTerritoryId && (
-            <ArmyPanel armyId={game.selectedArmyId} />
+          {ui.activePanel === 'territory' && game.selectedArmyId && !game.selectedTerritoryId && (
+            <ArmyPanel />
           )}
           {ui.activePanel === 'army' && <ArmyPanel />}
-          {ui.activePanel === 'commanders' && <CommanderPanel />}
+          {ui.activePanel === 'commanders' && <CommanderPanel />}}
         </SidePanel>
         
         {/* Map */}
