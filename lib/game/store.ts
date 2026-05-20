@@ -204,12 +204,11 @@ export const useGameStore = create<GameStore>()((set, get) => {
           isLoading: false,
           ui: { ...initialUIState, showNewGameDialog: false }
         })
-        console.log('[v0] store.set game done, territories:', game.territories.size)
         
         // Start the game loop
         startGameLoop(game)
       } catch (error) {
-        console.error('[v0] Failed to start new game:', error)
+        console.error('Failed to start new game:', error)
         set({ isLoading: false })
       }
     },

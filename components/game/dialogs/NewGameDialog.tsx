@@ -23,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { 
   Play,
@@ -52,7 +51,6 @@ export function NewGameDialog() {
   const selectedFactionConfig = FACTION_CONFIG[settings.playerFaction]
 
   const handleStartGame = () => {
-    console.log('[v0] handleStartGame called, settings:', settings.playerFaction)
     startNewGame({
       mapRegion: 'europe',
       difficulty: settings.difficulty,
@@ -61,7 +59,6 @@ export function NewGameDialog() {
       fogOfWar: false,
       battleTimer: 45,
     }, settings.playerFaction)
-    console.log('[v0] startNewGame returned')
     setOpen(false)
   }
 
@@ -74,8 +71,8 @@ export function NewGameDialog() {
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl flex flex-col" style={{ height: 'min(90vh, 700px)' }}>
+        <DialogHeader className="shrink-0">
           <DialogTitle className="text-2xl flex items-center gap-2">
             <Crown className="h-6 w-6" />
             New Campaign
@@ -85,8 +82,8 @@ export function NewGameDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
-          <div className="space-y-6 py-4">
+        <div className="flex-1 overflow-y-auto pr-1 -mr-1">
+          <div className="space-y-6 py-2">
             {/* Faction Selection */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">Choose Your Faction</Label>
@@ -212,9 +209,9 @@ export function NewGameDialog() {
               </Select>
             </div>
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className="mt-4">
+        <DialogFooter className="shrink-0 pt-4 border-t border-border">
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
