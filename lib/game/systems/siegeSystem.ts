@@ -132,7 +132,8 @@ export function initiateSiege(
   attackingArmy: Army,
   territory: Territory,
   attackerId: string,
-  defenderId: string
+  defenderId: string,
+  currentDay = 0
 ): SiegeState {
   const fortLevel = territory.fortificationLevel
   const fortStats = FORTIFICATION_STRENGTH[fortLevel] || FORTIFICATION_STRENGTH[0]
@@ -143,7 +144,9 @@ export function initiateSiege(
     defenderId,
     territoryId: territory.id,
     phase: 'approach',
-    turnsElapsed: 0,
+    startDay: currentDay,
+    daysElapsed: 0,
+    lastTickDay: currentDay,
     wallIntegrity: fortStats.wallStrength,
     defenderSupplies: territory.supplies,
     defenderMorale: territory.morale,
@@ -162,12 +165,12 @@ export function processSiegePhaseTransition(siege: SiegeState, territory: Territ
   switch (siege.phase) {
     case 'approach':
       // After 1 turn, move to encirclement
-      if (siege.turnsElapsed >= 1) return 'encirclement'
+      if (siege.daysElapsed >= 1) return 'encirclement'
       break
 
     case 'encirclement':
       // After 2 turns, move to active siege
-      if (siege.turnsElapsed >= 3) return 'active'
+      if (siege.daysElapsed >= 3) return 'active'
       break
 
     case 'active':
@@ -402,7 +405,7 @@ export function checkReliefForce(
     const army = armies.get(armyId)
     if (!army) continue
     
-    if (army.destination === siege.territoryId || army.position === siege.territoryId) {
+    if (army.targetTerritoryId === siege.territoryId || army.currentTerritoryId === siege.territoryId) {
       if (army.id !== siege.attackingArmyId) {
         return army
       }
@@ -449,14 +452,14 @@ export function processSiegeTick(game: GameState): GameState {
     // Update turn counter
     let updatedSiege: SiegeState = {
       ...siege,
-      turnsElapsed: siege.turnsElapsed + 1,
+      daysElapsed: siege.daysElapsed + 1,
     }
 
     // Natural supply drain during siege
     updatedSiege.defenderSupplies = Math.max(0, updatedSiege.defenderSupplies - 5)
     
     // Morale drain from prolonged siege
-    if (updatedSiege.turnsElapsed > 5) {
+    if (updatedSiege.daysElapsed > 5) {
       updatedSiege.defenderMorale = Math.max(0, updatedSiege.defenderMorale - 3)
     }
 
@@ -468,7 +471,7 @@ export function processSiegeTick(game: GameState): GameState {
       // Log phase change
       newEvents.push({
         id: uuid(),
-        turn: game.turn,
+        day: game.time.totalDays,
         type: 'siege_started', // Reuse for phase changes
         title: `Siege Phase: ${newPhase}`,
         description: `The siege of ${territory.name} has entered the ${newPhase} phase.`,
@@ -492,7 +495,7 @@ export function processSiegeTick(game: GameState): GameState {
 
       newEvents.push({
         id: uuid(),
-        turn: game.turn,
+        day: game.time.totalDays,
         type: 'territory_captured',
         title: 'Territory Captured!',
         description: `${territory.name} has fallen to ${attackerFaction?.name || 'the enemy'}!`,

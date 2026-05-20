@@ -563,7 +563,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
       
       const event: GameEvent = {
         id: uuid(),
-        turn: game.time.totalDays,
+        day: game.time.totalDays,
         type: 'war_declared',
         title: 'War Declared!',
         description: `${playerFaction.name} has declared war on ${targetFaction.name}!`,
@@ -650,7 +650,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
               history: [
                 ...r.history,
                 {
-                  turn: game.time.totalDays,
+                  day: game.time.totalDays,
                   type: 'betrayal',
                   description: 'Alliance broken',
                   impact: -30,

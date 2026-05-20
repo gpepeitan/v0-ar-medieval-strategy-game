@@ -345,8 +345,8 @@ export function processCommandersTick(game: GameState): GameState {
   for (const [commanderId, commander] of game.commanders) {
     if (!commander.isAlive) continue
 
-    // Age commanders (once per year = every 4 turns)
-    if (game.turn % 4 === 0) {
+    // Age commanders (once per year = every 365 days)
+    if (game.time.totalDays % 365 === 0) {
       const aged = processCommanderAging(commander)
       newCommanders.set(commanderId, aged)
 
@@ -356,7 +356,7 @@ export function processCommandersTick(game: GameState): GameState {
         newCommanders.set(commanderId, { ...aged, isAlive: false })
         newEvents.push({
           id: uuid(),
-          turn: game.turn,
+          day: game.time.totalDays,
           type: 'commander_death',
           title: 'Commander Died',
           description: `${aged.name} has died of ${cause === 'natural' ? 'natural causes' : 'unknown causes'}.`,

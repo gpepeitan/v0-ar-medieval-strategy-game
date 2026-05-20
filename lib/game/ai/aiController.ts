@@ -372,7 +372,7 @@ function executeAttack(state: GameState, factionId: string, threats: Map<string,
     
     const event: GameEvent = {
       id: uuid(),
-      turn: state.time.totalDays,
+      day: state.time.totalDays,
       type: 'war_declared',
       title: 'War Declared!',
       description: `${faction.name} has declared war on ${targetFaction?.name}!`,

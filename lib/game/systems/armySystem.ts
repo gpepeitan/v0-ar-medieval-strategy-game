@@ -383,14 +383,18 @@ export function createArmy(
     ownerId,
     commanderId: null,
     units: [],
-    position: territoryId,
-    destination: null,
+    position: [0, 0] as [number, number],  // Will be set to territory center on spawn
+    currentTerritoryId: territoryId,
+    targetTerritoryId: null,
+    targetPosition: null,
     movementProgress: 0,
+    movementSpeed: 1,
     supplies: 100,
     maxSupplies: 100,
     morale: 100,
     isRaiding: false,
     isSieging: false,
+    inBattle: null,
   }
 }
 
@@ -400,19 +404,18 @@ export function processArmyMovement(
   territories: Map<string, Territory>,
   commander: Commander | null
 ): Army {
-  if (!army.destination || army.destination === army.position) {
-    return { ...army, destination: null, movementProgress: 0 }
+  if (!army.targetTerritoryId || army.targetTerritoryId === army.currentTerritoryId) {
+    return { ...army, targetTerritoryId: null, movementProgress: 0 }
   }
 
   const speed = calculateArmySpeed(army, commander)
-  const newProgress = army.movementProgress + (speed * 25) // 25% per speed point per turn
+  const newProgress = army.movementProgress + (speed * 25)
 
   if (newProgress >= 100) {
-    // Arrived at destination
     return {
       ...army,
-      position: army.destination,
-      destination: null,
+      currentTerritoryId: army.targetTerritoryId,
+      targetTerritoryId: null,
       movementProgress: 0,
     }
   }

@@ -67,7 +67,7 @@ export function EventLog() {
                     {event.description}
                   </div>
                   <div className="text-xs text-slate-500 mt-1">
-                    Turn {event.turn}
+                    Day {event.day}
                   </div>
                 </div>
               </div>

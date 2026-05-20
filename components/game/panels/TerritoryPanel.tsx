@@ -58,11 +58,12 @@ export function TerritoryPanel() {
   if (!territory) return null
 
   const owner = territory.ownerId ? game.factions.get(territory.ownerId) : null
-  const factionConfig = owner ? FACTION_CONFIG[owner.templateId] : null
+  const factionConfig = owner ? FACTION_CONFIG[owner.id] : null
   const terrainDisplay = TERRAIN_DISPLAY[territory.terrain] || { color: '#666', label: territory.terrain }
-  const playerFactionId = game.playerFactionId
+  const playerFaction = Array.from(game.factions.values()).find(f => f.isPlayer) ?? null
+  const playerFactionId = playerFaction?.id ?? null
+  
   const isPlayerOwned = territory.ownerId === playerFactionId
-  const playerFaction = playerFactionId ? game.factions.get(playerFactionId) : null
   
   // Find armies in this territory
   const armiesInTerritory = Array.from(game.armies.values()).filter(a => 
@@ -110,7 +111,7 @@ export function TerritoryPanel() {
           </Button>
         </div>
 
-        {owner && factionConfig && (
+        {owner && (
           <div 
             className="p-3 rounded-lg border"
             style={{ 
@@ -125,8 +126,8 @@ export function TerritoryPanel() {
               />
               <span className="font-medium text-foreground">{owner.name}</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {factionConfig.personality} faction
+            <p className="text-xs text-muted-foreground mt-1 capitalize">
+              {owner.personality} faction
             </p>
           </div>
         )}
@@ -142,26 +143,10 @@ export function TerritoryPanel() {
         <div>
           <h3 className="text-sm font-semibold mb-2 text-foreground">Production</h3>
           <div className="grid grid-cols-2 gap-2">
-            <ResourceItem 
-              icon={<Coins className="h-4 w-4 text-yellow-500" />} 
-              label="Gold" 
-              value={`+${territory.production?.gold || 0}/day`} 
-            />
-            <ResourceItem 
-              icon={<Wheat className="h-4 w-4 text-amber-600" />} 
-              label="Food" 
-              value={`+${territory.production?.food || 0}/day`} 
-            />
-            <ResourceItem 
-              icon={<Trees className="h-4 w-4 text-green-600" />} 
-              label="Wood" 
-              value={`+${territory.production?.wood || 0}/day`} 
-            />
-            <ResourceItem 
-              icon={<Mountain className="h-4 w-4 text-stone-500" />} 
-              label="Stone" 
-              value={`+${territory.production?.stone || 0}/day`} 
-            />
+            <ResourceItem icon={<Coins className="h-4 w-4 text-yellow-500" />} label="Gold"  value={`+${territory.resourceProduction?.gold  ?? 0}/day`} />
+            <ResourceItem icon={<Wheat className="h-4 w-4 text-amber-600" />}  label="Food"  value={`+${territory.resourceProduction?.food  ?? 0}/day`} />
+            <ResourceItem icon={<Trees className="h-4 w-4 text-green-600" />}  label="Wood"  value={`+${territory.resourceProduction?.wood  ?? 0}/day`} />
+            <ResourceItem icon={<Mountain className="h-4 w-4 text-stone-500" />} label="Stone" value={`+${territory.resourceProduction?.stone ?? 0}/day`} />
           </div>
         </div>
 

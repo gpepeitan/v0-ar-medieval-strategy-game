@@ -241,7 +241,7 @@ function getCommanderPortrait(factionId: string): string {
 
 function createStartingArmy(
   factionId: string,
-  position: string,
+  territoryId: string,
   isPlayer: boolean,
   militaryBonus: number
 ): Army {
@@ -273,14 +273,18 @@ function createStartingArmy(
     ownerId: factionId,
     commanderId: null,
     units: baseUnits,
-    position,
-    destination: null,
+    position: [0, 0] as [number, number],
+    currentTerritoryId: territoryId,
+    targetTerritoryId: null,
+    targetPosition: null,
     movementProgress: 0,
+    movementSpeed: 1,
     supplies: 100,
     maxSupplies: 100,
     morale: 80,
     isRaiding: false,
     isSieging: false,
+    inBattle: null,
   }
 }
 

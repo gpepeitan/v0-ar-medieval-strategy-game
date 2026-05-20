@@ -292,7 +292,7 @@ function processCommanderAging(state: GameState): GameState {
         
         events.push({
           id: crypto.randomUUID(),
-          turn: state.time.totalDays,
+          day: state.time.totalDays,
           type: 'commander_death',
           title: 'Commander Died',
           description: `${commander.name} has died of old age at ${newAge}.`,
@@ -330,7 +330,7 @@ function checkVictoryConditions(state: GameState): GameState {
           ...state.eventLog,
           {
             id: crypto.randomUUID(),
-            turn: state.time.totalDays,
+            day: state.time.totalDays,
             type: 'victory',
             title: 'VICTORY!',
             description: `You have conquered ${Math.floor(territoryPercentage * 100)}% of the known world! Your dynasty will be remembered forever!`,
@@ -350,7 +350,7 @@ function checkVictoryConditions(state: GameState): GameState {
         ...state.eventLog,
         {
           id: crypto.randomUUID(),
-          turn: state.time.totalDays,
+          day: state.time.totalDays,
           type: 'victory',
           title: 'DEFEAT',
           description: 'Your dynasty has fallen. All territories have been lost.',

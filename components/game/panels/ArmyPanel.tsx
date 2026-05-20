@@ -183,14 +183,15 @@ function ArmyCard({
 }
 
 function CommanderCard({ commander }: { commander: Commander }) {
-  const xpToNextLevel = commander.level * 100
+  const level = Math.floor(commander.experience / 100) + 1
+  const xpToNextLevel = level * 100
   const xpProgress = Math.min(100, (commander.experience / xpToNextLevel) * 100)
 
   return (
     <div className="p-3 rounded-lg border border-border">
       <div className="flex items-center justify-between mb-2">
         <span className="font-semibold text-foreground">{commander.name}</span>
-        <Badge variant="outline">Lvl {commander.level}</Badge>
+        <Badge variant="outline">Lvl {level}</Badge>
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-xs mb-2">

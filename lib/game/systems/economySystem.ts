@@ -260,7 +260,7 @@ export function processEconomyTick(game: GameState): GameState {
       faction,
       game.territories,
       game.armies,
-      game.season
+      game.time.season
     )
 
     // Update faction resources

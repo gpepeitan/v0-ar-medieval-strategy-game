@@ -70,7 +70,7 @@ export function NegotiationChat() {
   // Init conversation
   useEffect(() => {
     if (isOpen && aiFaction && playerFaction && messages.length === 0) {
-      const greeting = generateGreeting(aiFaction, playerFaction, relation)
+      const greeting = generateGreeting(aiFaction, playerFaction, relation ?? undefined)
       const initial: NegotiationMessage = {
         id: uuidv4(),
         speaker: "ai",
@@ -146,8 +146,8 @@ export function NegotiationChat() {
     await new Promise(resolve => setTimeout(resolve, 900 + Math.random() * 1200))
 
     // Evaluate + respond
-    const evaluation = evaluateProposal(terms, aiFaction, playerFaction, relation, game)
-    const responseText = generateAIResponse(evaluation, aiFaction, playerFaction, relation, terms, game)
+    const evaluation = evaluateProposal(terms, aiFaction, playerFaction, relation ?? undefined, game)
+    const responseText = generateAIResponse(evaluation, aiFaction, playerFaction, relation ?? undefined, terms, game)
 
     const aiMsg: NegotiationMessage = {
       id: uuidv4(),
@@ -166,7 +166,6 @@ export function NegotiationChat() {
           type: "success",
           title: terms.targetFactionId ? "Joint War Agreed!" : "Alliance Formed!",
           message: `${aiFaction.name} has agreed to your terms.`,
-          factionId: aiFaction.id,
         })
       }
       setNegoState(prev => prev ? { ...prev, aiMood: "receptive", currentOffer: null } : null)

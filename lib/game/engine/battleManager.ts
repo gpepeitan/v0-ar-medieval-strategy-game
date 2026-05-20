@@ -108,7 +108,7 @@ export function checkForBattles(state: GameState): GameState {
         const territory = state.territories.get(territoryId)
         events.push({
           id: uuid(),
-          turn: state.time.totalDays,
+          day: state.time.totalDays,
           type: 'battle',
           title: 'Battle Engaged!',
           description: `${attackerArmy.name} has engaged ${defenderArmy.name} at ${territory?.name || territoryId}!`,
@@ -144,7 +144,7 @@ export function updateBattleTimers(state: GameState, deltaMs: number): GameState
       })
       
       // Auto-resolve if timer expired
-      if (newTimeRemaining <= 0 && battle.phase !== 'resolving') {
+      if (newTimeRemaining <= 0 && (battle.phase as string) !== 'resolving') {
         // Will be resolved in the next cycle
         updatedBattles.set(battleId, {
           ...battle,
@@ -264,7 +264,7 @@ export function resolveBattles(state: GameState): GameState {
     const territory = state.territories.get(battle.territoryId)
     events.push({
       id: uuid(),
-      turn: state.time.totalDays,
+      day: state.time.totalDays,
       type: 'battle',
       title: `Battle Result: ${result.result.replace('_', ' ').toUpperCase()}`,
       description: `Battle at ${territory?.name || battle.territoryId}: ${attackerArmy.name} vs ${defenderArmy.name}. Attacker casualties: ${result.attackerCasualties}, Defender casualties: ${result.defenderCasualties}`,

@@ -324,7 +324,7 @@ export function processLivestockTick(game: GameState): GameState {
     if (territory.siegeState) {
       updatedTerritory = processSiegeLivestockConsumption(
         updatedTerritory,
-        territory.siegeState.turnsElapsed
+        territory.siegeState.daysElapsed
       )
     } else {
       // Normal growth
