@@ -35,11 +35,30 @@ function MapEventHandler() {
 function TerritoryPolygon({ territory }: { territory: Territory }) {
   const game = useGameStore(state => state.game)
   const selectTerritory = useGameStore(state => state.selectTerritory)
+  const moveArmy = useGameStore(state => state.moveArmy)
   const selectedTerritoryId = game?.selectedTerritoryId
+  const selectedArmyId = game?.selectedArmyId
   
   const owner = territory.ownerId ? game?.factions.get(territory.ownerId) : null
   const isSelected = selectedTerritoryId === territory.id
   const isUnderSiege = territory.siegeState !== null
+
+  // Check if selected army belongs to player
+  const selectedArmy = selectedArmyId ? game?.armies.get(selectedArmyId) : null
+  const playerFaction = game ? Array.from(game.factions.values()).find(f => f.isPlayer) : null
+  const isPlayerArmy = selectedArmy && playerFaction && selectedArmy.ownerId === playerFaction.id
+
+  const handleClick = () => {
+    if (isPlayerArmy && selectedArmyId && territory.id !== selectedArmy?.currentTerritoryId) {
+      // Move the selected army to this territory
+      moveArmy(selectedArmyId, territory.id)
+    } else {
+      selectTerritory(territory.id)
+    }
+  }
+  
+  // Show move target highlight when player army is selected
+  const isMoveTarget = isPlayerArmy && !isSelected && selectedArmy?.currentTerritoryId !== territory.id
   
   // Determine color
   let fillColor = '#374151' // Unclaimed gray
@@ -59,10 +78,10 @@ function TerritoryPolygon({ territory }: { territory: Territory }) {
   }
   
   const pathOptions = {
-    color: isSelected ? '#fbbf24' : '#1e293b',
-    weight: isSelected ? 3 : 1,
+    color: isSelected ? '#fbbf24' : isMoveTarget ? '#60a5fa' : '#1e293b',
+    weight: isSelected ? 3 : isMoveTarget ? 2 : 1,
     fillColor,
-    fillOpacity,
+    fillOpacity: isMoveTarget ? Math.min(fillOpacity + 0.15, 0.85) : fillOpacity,
   }
   
   return (
@@ -70,7 +89,7 @@ function TerritoryPolygon({ territory }: { territory: Territory }) {
       positions={territory.bounds as [number, number][]}
       pathOptions={pathOptions}
       eventHandlers={{
-        click: () => selectTerritory(territory.id),
+        click: handleClick,
       }}
     >
       <Tooltip 
@@ -102,6 +121,9 @@ function TerritoryPolygon({ territory }: { territory: Territory }) {
           <div className="text-xs text-slate-500 mt-1">
             Fort Level: {territory.fortificationLevel}
           </div>
+          {isMoveTarget && (
+            <div className="text-xs text-blue-400 mt-1 font-semibold">Click to move army here</div>
+          )}
         </div>
       </Tooltip>
     </Polygon>

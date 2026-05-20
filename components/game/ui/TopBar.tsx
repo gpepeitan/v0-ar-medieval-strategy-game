@@ -9,6 +9,9 @@ import {
   Coins, 
   Users,
   Save,
+  Wheat,
+  Hammer,
+  Trees,
 } from 'lucide-react'
 import { SpeedControls } from './SpeedControls'
 
@@ -111,15 +114,16 @@ function ResourceDisplay({ icon, value, label }: {
     iron: 'text-slate-300',
     wood: 'text-orange-400',
   }
-  const iconSymbols = {
-    gold: '🪙',
-    food: '🌾',
-    iron: '⚒️',
-    wood: '🪵',
+  const IconComponents = {
+    gold: Coins,
+    food: Wheat,
+    iron: Hammer,
+    wood: Trees,
   }
+  const Icon = IconComponents[icon]
   return (
     <div className="flex items-center gap-1.5" title={label}>
-      <span className={iconColors[icon]}>{iconSymbols[icon]}</span>
+      <Icon className={`h-3.5 w-3.5 ${iconColors[icon]}`} />
       <span className="text-sm font-medium text-slate-200">
         {Math.floor(value).toLocaleString()}
       </span>

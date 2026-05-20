@@ -11,6 +11,8 @@ import { EconomyPanel } from './panels/EconomyPanel'
 import { CommanderPanel } from './panels/CommanderPanel'
 import { NegotiationChat } from './negotiation/NegotiationChat'
 import { NewGameDialog } from './dialogs/NewGameDialog'
+import { BattleAlerts } from './ui/BattleAlerts'
+import { BattleCommandDialog } from './dialogs/BattleCommandDialog'
 import { NotificationStack } from './ui/NotificationStack'
 import { EventLog } from './ui/EventLog'
 
@@ -56,9 +58,13 @@ export function GameLayout() {
         </SidePanel>
       </div>
       
+      {/* Battle Alerts overlay */}
+      <BattleAlerts />
+      
       {/* Dialogs */}
       {ui.showNewGameDialog && <NewGameDialog />}
       {ui.showNegotiationChat && game.activeNegotiation && <NegotiationChat />}
+      {ui.showBattleCommand && <BattleCommandDialog />}
       
       {/* Notifications */}
       <NotificationStack />
