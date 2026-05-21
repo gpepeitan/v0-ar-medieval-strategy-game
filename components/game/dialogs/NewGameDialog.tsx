@@ -1,20 +1,12 @@
-"use client"
+'use client'
 
 import { useState } from "react"
 import { useGameStore } from "@/lib/game/store"
-import { FACTION_CONFIG, FACTION_TEMPLATES } from "@/lib/game/constants"
+import { FACTION_DEFINITIONS } from "@/lib/game/constants"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Slider } from "@/components/ui/slider"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -24,201 +16,169 @@ import {
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Play,
-  Crown,
-  Sword,
-  Coins,
-  Shield,
-  Users
-} from "lucide-react"
+import { Play, Crown, Sword } from "lucide-react"
+import type { GameSettings } from "@/lib/game/types"
 
-interface NewGameDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onStartGame: (settings: GameSettings) => void
-}
+export function NewGameDialog() {
+  const startNewGame = useGameStore(state => state.startNewGame)
 
-export interface GameSettings {
-  playerFaction: string
-  numOpponents: number
-  difficulty: 'easy' | 'normal' | 'hard' | 'brutal'
-  mapSize: 'small' | 'medium' | 'large'
-}
+  const [selectedFactionId, setSelectedFactionId] = useState(FACTION_DEFINITIONS[0].id)
+  const [numOpponents, setNumOpponents] = useState(6)
+  const [difficulty, setDifficulty] = useState<GameSettings['difficulty']>('normal')
+  const [mapRegion, setMapRegion] = useState<GameSettings['mapRegion']>('europe')
 
-export function NewGameDialog({ open, onOpenChange, onStartGame }: NewGameDialogProps) {
-  const [settings, setSettings] = useState<GameSettings>({
-    playerFaction: 'frankish_kingdom',
-    numOpponents: 6,
-    difficulty: 'normal',
-    mapSize: 'medium'
-  })
-
-  const factionList = Object.entries(FACTION_CONFIG)
-  const selectedFactionConfig = FACTION_CONFIG[settings.playerFaction]
+  const selectedFaction = FACTION_DEFINITIONS.find(f => f.id === selectedFactionId)!
 
   const handleStartGame = () => {
-    onStartGame(settings)
-    onOpenChange(false)
+    const settings: GameSettings = {
+      mapRegion,
+      difficulty,
+      aiCount: numOpponents,
+      startingResources: 'normal',
+      fogOfWar: false,
+      gameSpeed: 'normal',
+    }
+    startNewGame(settings, selectedFactionId)
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="text-2xl flex items-center gap-2">
-            <Crown className="h-6 w-6" />
-            New Campaign
-          </DialogTitle>
-          <DialogDescription>
-            Choose your faction and configure your game settings
-          </DialogDescription>
-        </DialogHeader>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+      <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b border-slate-700">
+          <h1 className="text-3xl font-bold text-amber-400 flex items-center gap-3">
+            <Crown className="h-8 w-8" />
+            Medieval Strategy
+          </h1>
+          <p className="text-slate-400 mt-1">Choose your faction and forge your empire</p>
+        </div>
 
-        <ScrollArea className="flex-1 pr-4">
-          <div className="space-y-6 py-4">
+        <ScrollArea className="flex-1">
+          <div className="p-6 space-y-6">
             {/* Faction Selection */}
             <div className="space-y-3">
-              <Label className="text-base font-semibold">Choose Your Faction</Label>
+              <Label className="text-base font-semibold text-slate-200">Choose Your Faction</Label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {factionList.map(([id, config]) => (
+                {FACTION_DEFINITIONS.map(faction => (
                   <button
-                    key={id}
-                    onClick={() => setSettings(s => ({ ...s, playerFaction: id }))}
+                    key={faction.id}
+                    onClick={() => setSelectedFactionId(faction.id)}
                     className={`p-3 rounded-lg border-2 text-left transition-all ${
-                      settings.playerFaction === id 
-                        ? 'border-primary bg-primary/10' 
-                        : 'border-border hover:border-primary/50'
+                      selectedFactionId === faction.id
+                        ? 'border-amber-500 bg-amber-500/10'
+                        : 'border-slate-600 hover:border-slate-400 bg-slate-800'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <div 
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: config.color }}
-                      />
-                      <span className="font-medium text-sm text-foreground">{config.name}</span>
+                      <span className="text-lg">{faction.flag}</span>
+                      <span className="font-medium text-sm text-slate-200 leading-tight">{faction.name}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground capitalize">{config.personality}</p>
+                    <p className="text-xs text-slate-400 capitalize">{faction.personality}</p>
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Selected Faction Details */}
-            {selectedFactionConfig && (
-              <div 
-                className="p-4 rounded-lg border-2"
-                style={{ 
-                  borderColor: selectedFactionConfig.color,
-                  backgroundColor: `${selectedFactionConfig.color}10`
-                }}
-              >
-                <h3 className="font-semibold text-lg mb-2 text-foreground">{selectedFactionConfig.name}</h3>
-                <p className="text-sm text-muted-foreground mb-3">{selectedFactionConfig.description}</p>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-xs">
-                      <Sword className="h-3 w-3 mr-1" />
-                      {selectedFactionConfig.strengths[0]}
-                    </Badge>
-                    {selectedFactionConfig.strengths[1] && (
-                      <Badge variant="secondary" className="text-xs">
-                        {selectedFactionConfig.strengths[1]}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs text-orange-500 border-orange-500">
-                      Weakness: {selectedFactionConfig.weaknesses[0]}
-                    </Badge>
-                  </div>
-                </div>
+            <div
+              className="p-4 rounded-lg border-2"
+              style={{
+                borderColor: selectedFaction.color,
+                backgroundColor: `${selectedFaction.color}15`
+              }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl">{selectedFaction.flag}</span>
+                <h3 className="font-semibold text-lg text-slate-100">{selectedFaction.name}</h3>
               </div>
-            )}
+              <p className="text-sm text-slate-300 mb-3">{selectedFaction.description}</p>
+              <Badge
+                variant="secondary"
+                className="text-xs"
+                style={{ backgroundColor: `${selectedFaction.color}30`, color: selectedFaction.color }}
+              >
+                <Sword className="h-3 w-3 mr-1" />
+                {selectedFaction.startingBonus}
+              </Badge>
+            </div>
 
-            {/* Number of Opponents */}
+            {/* Opponents */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">Number of Opponents</Label>
-                <span className="text-lg font-bold text-primary">{settings.numOpponents}</span>
+                <Label className="text-base font-semibold text-slate-200">Number of Opponents</Label>
+                <span className="text-lg font-bold text-amber-400">{numOpponents}</span>
               </div>
               <Slider
-                value={[settings.numOpponents]}
-                onValueChange={([value]) => setSettings(s => ({ ...s, numOpponents: value }))}
+                value={[numOpponents]}
+                onValueChange={([v]) => setNumOpponents(v)}
                 min={3}
                 max={11}
                 step={1}
                 className="w-full"
               />
-              <p className="text-xs text-muted-foreground">
-                {settings.numOpponents <= 4 ? 'Fewer rivals, more room to expand' : 
-                 settings.numOpponents <= 7 ? 'Balanced competition' : 
-                 'Crowded map, constant conflict'}
+              <p className="text-xs text-slate-400">
+                {numOpponents <= 4 ? 'Fewer rivals, more room to expand'
+                  : numOpponents <= 7 ? 'Balanced competition'
+                  : 'Crowded map, constant conflict'}
               </p>
             </div>
 
             {/* Difficulty */}
             <div className="space-y-3">
-              <Label className="text-base font-semibold">Difficulty</Label>
+              <Label className="text-base font-semibold text-slate-200">Difficulty</Label>
               <RadioGroup
-                value={settings.difficulty}
-                onValueChange={(value) => setSettings(s => ({ ...s, difficulty: value as GameSettings['difficulty'] }))}
+                value={difficulty}
+                onValueChange={(v) => setDifficulty(v as GameSettings['difficulty'])}
                 className="grid grid-cols-2 sm:grid-cols-4 gap-2"
               >
-                {[
-                  { value: 'easy', label: 'Easy', desc: 'AI is passive' },
-                  { value: 'normal', label: 'Normal', desc: 'Balanced AI' },
-                  { value: 'hard', label: 'Hard', desc: 'Aggressive AI' },
-                  { value: 'brutal', label: 'Brutal', desc: 'No mercy' }
-                ].map(diff => (
+                {([
+                  { value: 'easy', label: 'Easy', desc: 'Passive AI' },
+                  { value: 'normal', label: 'Normal', desc: 'Balanced' },
+                  { value: 'hard', label: 'Hard', desc: 'Aggressive' },
+                  { value: 'brutal', label: 'Brutal', desc: 'No mercy' },
+                ] as const).map(d => (
                   <Label
-                    key={diff.value}
-                    htmlFor={diff.value}
+                    key={d.value}
+                    htmlFor={d.value}
                     className={`flex flex-col items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                      settings.difficulty === diff.value 
-                        ? 'border-primary bg-primary/10' 
-                        : 'border-border hover:border-primary/50'
+                      difficulty === d.value
+                        ? 'border-amber-500 bg-amber-500/10'
+                        : 'border-slate-600 hover:border-slate-400 bg-slate-800'
                     }`}
                   >
-                    <RadioGroupItem value={diff.value} id={diff.value} className="sr-only" />
-                    <span className="font-medium text-foreground">{diff.label}</span>
-                    <span className="text-xs text-muted-foreground">{diff.desc}</span>
+                    <RadioGroupItem value={d.value} id={d.value} className="sr-only" />
+                    <span className="font-medium text-slate-200">{d.label}</span>
+                    <span className="text-xs text-slate-400">{d.desc}</span>
                   </Label>
                 ))}
               </RadioGroup>
             </div>
 
-            {/* Map Size */}
+            {/* Map Region */}
             <div className="space-y-3">
-              <Label className="text-base font-semibold">Map Size</Label>
-              <Select 
-                value={settings.mapSize} 
-                onValueChange={(value) => setSettings(s => ({ ...s, mapSize: value as GameSettings['mapSize'] }))}
-              >
-                <SelectTrigger>
+              <Label className="text-base font-semibold text-slate-200">Map Region</Label>
+              <Select value={mapRegion} onValueChange={(v) => setMapRegion(v as GameSettings['mapRegion'])}>
+                <SelectTrigger className="bg-slate-800 border-slate-600">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="small">Small (30 territories)</SelectItem>
-                  <SelectItem value="medium">Medium (45 territories)</SelectItem>
-                  <SelectItem value="large">Large (60 territories)</SelectItem>
+                  <SelectItem value="europe">Europe (Classic Medieval)</SelectItem>
+                  <SelectItem value="mediterranean">Mediterranean (Rome's Legacy)</SelectItem>
+                  <SelectItem value="middle_east">Middle East (Silk Road)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
         </ScrollArea>
 
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleStartGame} className="gap-2">
-            <Play className="h-4 w-4" />
+        {/* Footer */}
+        <div className="p-6 border-t border-slate-700">
+          <Button onClick={handleStartGame} className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold py-3 text-lg gap-2">
+            <Play className="h-5 w-5" />
             Start Campaign
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </div>
+    </div>
   )
 }
