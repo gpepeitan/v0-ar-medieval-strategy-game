@@ -3,6 +3,7 @@
 import { v4 as uuid } from 'uuid'
 import {
   GameState,
+  GameSpeed,
   Faction,
   Territory,
   Army,
@@ -43,13 +44,13 @@ export function processEndTurn(game: GameState): GameState {
 // Process army movement
 function processArmyMovement(game: GameState): GameState {
   const updatedArmies = new Map(game.armies)
-  const seasonEffects = SEASON_EFFECTS[game.season]
+  const seasonEffects = SEASON_EFFECTS[game.time.season]
   
   for (const [armyId, army] of game.armies) {
-    if (!army.destination || army.isSieging) continue
+    if (!army.targetTerritoryId || army.isSieging) continue
     
-    const currentTerritory = game.territories.get(army.position)
-    const targetTerritory = game.territories.get(army.destination)
+    const currentTerritory = game.territories.get(army.currentTerritoryId)
+    const targetTerritory = game.territories.get(army.targetTerritoryId)
     
     if (!currentTerritory || !targetTerritory) continue
     
@@ -73,8 +74,8 @@ function processArmyMovement(game: GameState): GameState {
       // Arrived at destination
       const updatedArmy = {
         ...army,
-        position: army.destination,
-        destination: null,
+        currentTerritoryId: army.targetTerritoryId,
+        targetTerritoryId: null,
         movementProgress: 0,
         isRaiding: false, // Raiding completes
       }
@@ -109,7 +110,7 @@ function processSieges(game: GameState): GameState {
     }
     
     // Advance siege
-    const newSiege = { ...siege, turnsElapsed: siege.turnsElapsed + 1 }
+    const newSiege = { ...siege, daysElapsed: siege.daysElapsed + 1 }
     
     // Process siege phase
     switch (siege.phase) {
@@ -150,7 +151,7 @@ function processSieges(game: GameState): GameState {
         }
         
         // Max siege duration
-        if (newSiege.turnsElapsed >= SIEGE_CONSTANTS.maxSiegeTurns) {
+        if (newSiege.daysElapsed >= SIEGE_CONSTANTS.maxSiegeTurns) {
           newSiege.phase = 'surrender'
         }
         break
@@ -208,7 +209,7 @@ function processSieges(game: GameState): GameState {
             // Add event
             newEvents.push({
               id: uuid(),
-              turn: game.turn,
+              day: game.time.totalDays,
               type: 'territory_captured',
               title: 'Territory Captured!',
               description: `${attacker.name} has captured ${territory.name} from ${defender.name}!`,
@@ -250,7 +251,7 @@ function processSieges(game: GameState): GameState {
           
           newEvents.push({
             id: uuid(),
-            turn: game.turn,
+            day: game.time.totalDays,
             type: 'siege_ended',
             title: 'Siege Ended - Surrender',
             description: `${territory.name} has surrendered to ${attackerFaction.name}!`,
@@ -279,7 +280,7 @@ function processSieges(game: GameState): GameState {
 // Process resource production for player
 function processResourceProduction(game: GameState): GameState {
   const updatedFactions = new Map(game.factions)
-  const seasonEffects = SEASON_EFFECTS[game.season]
+  const seasonEffects = SEASON_EFFECTS[game.time.season]
   
   for (const [factionId, faction] of game.factions) {
     if (!faction.isPlayer) continue // AI processed separately
@@ -424,7 +425,7 @@ function checkVictoryConditions(game: GameState): GameState {
   if (condition?.type === 'domination' && controlPercent >= condition.threshold) {
     const event: GameEvent = {
       id: uuid(),
-      turn: game.turn,
+      day: game.time.totalDays,
       type: 'victory',
       title: 'Victory!',
       description: `${playerFaction.name} has achieved domination by controlling ${Math.floor(controlPercent * 100)}% of all territories!`,
@@ -434,8 +435,9 @@ function checkVictoryConditions(game: GameState): GameState {
     
     return {
       ...game,
+      isRunning: false,
+      speed: 0 as GameSpeed,
       eventLog: [...game.eventLog, event],
-      isPaused: true,
     }
   }
   
@@ -457,7 +459,7 @@ function checkDefeatedFactions(game: GameState): GameState {
       
       newEvents.push({
         id: uuid(),
-        turn: game.turn,
+        day: game.time.totalDays,
         type: 'battle',
         title: 'Faction Defeated!',
         description: `${faction.name} has been eliminated!`,

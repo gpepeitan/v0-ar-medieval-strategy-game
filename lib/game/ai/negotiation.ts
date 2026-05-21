@@ -1,5 +1,17 @@
 import { Faction, DiplomaticRelation, Territory, Army, GameState } from '../types'
-import { FACTION_CONFIG, AI_PERSONALITIES } from '../constants'
+import { FACTION_CONFIG } from '../constants'
+
+// Helper: get relation between two factions from faction.relations array
+function getRelation(faction: Faction, targetId: string): DiplomaticRelation | undefined {
+  return faction.relations.find(r => r.factionId === targetId || r.targetId === targetId)
+}
+
+// Helper: compute military strength from game armies
+function getMilitaryStrength(factionId: string, game: GameState): number {
+  return Array.from(game.armies.values())
+    .filter(a => a.ownerId === factionId)
+    .reduce((sum, a) => sum + a.units.reduce((u, s) => u + s.count, 0), 0)
+}
 
 export interface ProposalTerms {
   offeredGold?: number
@@ -97,11 +109,12 @@ export function parsePlayerProposal(text: string, gameState: GameState, targetFa
     if (match) {
       // Try to find a faction matching this name
       const factionName = match[1].toLowerCase()
-      const targetFaction = gameState.factions.find(f => 
+      const targetFaction = Array.from(gameState.factions.values()).find(f => 
         f.name.toLowerCase().includes(factionName) ||
         factionName.includes(f.name.toLowerCase().split(' ')[0])
       )
-      if (targetFaction && targetFaction.id !== targetFactionId && targetFaction.id !== gameState.playerFactionId) {
+      const playerFaction = Array.from(gameState.factions.values()).find(f => f.isPlayer)
+      if (targetFaction && targetFaction.id !== targetFactionId && targetFaction.id !== playerFaction?.id) {
         terms.targetFactionId = targetFaction.id
       }
     }
@@ -129,7 +142,7 @@ export function evaluateProposal(
   relation: DiplomaticRelation | undefined,
   gameState: GameState
 ): ProposalEvaluation {
-  const config = FACTION_CONFIG[aiFaction.templateId]
+  const config = FACTION_CONFIG[aiFaction.id]
   const personality = config?.personality || 'opportunist'
   const relationValue = relation?.value || 0
   
@@ -152,10 +165,10 @@ export function evaluateProposal(
 
   // Strategic value
   if (terms.proposedAlliance) {
-    const playerStrength = playerFaction.militaryStrength
-    const aiStrength = aiFaction.militaryStrength
+    const playerStrength = getMilitaryStrength(playerFaction.id, gameState)
+    const aiStrength = getMilitaryStrength(aiFaction.id, gameState)
     if (playerStrength > aiStrength) {
-      strategicValue += 20  // Alliance with stronger faction is valuable
+      strategicValue += 20
     } else {
       strategicValue += 5
     }
@@ -168,41 +181,34 @@ export function evaluateProposal(
   // VENGEANCE VALUE - The key feature!
   // "Help me destroy your biggest enemy" should be HUGE
   if (terms.targetFactionId) {
-    const targetFaction = gameState.factions.find(f => f.id === terms.targetFactionId)
+    const targetFaction = gameState.factions.get(terms.targetFactionId)
     if (targetFaction) {
-      // Check AI's relation with target
-      const aiTargetRelation = gameState.diplomaticRelations.find(
-        r => (r.faction1Id === aiFaction.id && r.faction2Id === terms.targetFactionId) ||
-             (r.faction2Id === aiFaction.id && r.faction1Id === terms.targetFactionId)
-      )
+      // Check AI's relation with target using faction.relations array
+      const aiTargetRelation = getRelation(aiFaction, terms.targetFactionId)
       const aiTargetValue = aiTargetRelation?.value || 0
 
       if (aiTargetValue <= -50) {
-        // This is AI's enemy! Massive bonus
         vengeanceValue += 50
       } else if (aiTargetValue <= -20) {
         vengeanceValue += 25
       } else if (aiTargetValue <= 0) {
         vengeanceValue += 10
       } else {
-        // Asking AI to attack their friend
         vengeanceValue -= 30
       }
 
       // Is this their BIGGEST threat?
-      const threats = gameState.factions
-        .filter(f => f.id !== aiFaction.id && f.isAlive)
+      const threats = Array.from(gameState.factions.values())
+        .filter(f => f.id !== aiFaction.id && !f.isDefeated)
         .map(f => {
-          const rel = gameState.diplomaticRelations.find(
-            r => (r.faction1Id === aiFaction.id && r.faction2Id === f.id) ||
-                 (r.faction2Id === aiFaction.id && r.faction1Id === f.id)
-          )
-          return { faction: f, threat: f.militaryStrength - (rel?.value || 0) }
+          const rel = getRelation(aiFaction, f.id)
+          const strength = getMilitaryStrength(f.id, gameState)
+          return { faction: f, threat: strength - (rel?.value || 0) }
         })
         .sort((a, b) => b.threat - a.threat)
 
       if (threats[0]?.faction.id === terms.targetFactionId) {
-        vengeanceValue += 30  // Bonus for targeting their biggest threat
+        vengeanceValue += 30
       }
     }
   }
@@ -227,14 +233,14 @@ export function evaluateProposal(
   }
 
   // Personality modifiers
-  const personalityMods = {
-    expansionist: { strategic: 1.5, economic: 0.8, vengeance: 1.2 },
-    merchant: { strategic: 0.8, economic: 1.8, vengeance: 0.7 },
-    militarist: { strategic: 1.3, economic: 0.7, vengeance: 1.5 },
-    diplomat: { strategic: 1.0, economic: 1.0, vengeance: 0.8, relationship: 1.5 },
-    opportunist: { strategic: 1.2, economic: 1.2, vengeance: 1.0 },
-    raider: { strategic: 0.9, economic: 1.4, vengeance: 1.3 },
-    defender: { strategic: 1.4, economic: 0.9, vengeance: 0.9 }
+  const personalityMods: Record<string, { strategic: number; economic: number; vengeance: number; relationship: number }> = {
+    expansionist: { strategic: 1.5, economic: 0.8, vengeance: 1.2, relationship: 0.8 },
+    merchant:     { strategic: 0.8, economic: 1.8, vengeance: 0.7, relationship: 1.2 },
+    militarist:   { strategic: 1.3, economic: 0.7, vengeance: 1.5, relationship: 0.7 },
+    diplomat:     { strategic: 1.0, economic: 1.0, vengeance: 0.8, relationship: 1.5 },
+    opportunist:  { strategic: 1.2, economic: 1.2, vengeance: 1.0, relationship: 1.0 },
+    raider:       { strategic: 0.9, economic: 1.4, vengeance: 1.3, relationship: 0.6 },
+    defender:     { strategic: 1.4, economic: 0.9, vengeance: 0.9, relationship: 1.1 },
   }
 
   const mods = personalityMods[personality as keyof typeof personalityMods] || personalityMods.opportunist
@@ -268,7 +274,7 @@ export function evaluateProposal(
     counterOffer = generateCounterOffer(terms, totalValue, acceptThreshold, aiFaction, personality)
   } else if (relationValue <= -75) {
     responseType = 'reject_final'
-  } else if (aiFaction.militaryStrength > playerFaction.militaryStrength * 1.5) {
+  } else if (getMilitaryStrength(aiFaction.id, gameState) > getMilitaryStrength(playerFaction.id, gameState) * 1.5) {
     responseType = 'threaten'
   }
 
@@ -318,7 +324,7 @@ export function generateAIResponse(
   terms: ProposalTerms,
   gameState: GameState
 ): string {
-  const config = FACTION_CONFIG[aiFaction.templateId]
+  const config = FACTION_CONFIG[aiFaction.id]
   const personality = config?.personality || 'opportunist'
   const relationValue = relation?.value || 0
 
@@ -533,7 +539,7 @@ export function generateAIResponse(
 
   // Special dialogue for "destroy enemy" proposals
   if (terms.targetFactionId && evaluation.vengeanceValue > 30) {
-    const targetFaction = gameState.factions.find(f => f.id === terms.targetFactionId)
+    const targetFaction = gameState.factions.get(terms.targetFactionId)
     if (targetFaction) {
       const enemyResponses = [
         `The ${targetFaction.name}... yes, they have been a thorn in our side. Your proposal intrigues us.`,
@@ -555,11 +561,11 @@ export function generateGreeting(
   playerFaction: Faction,
   relation: DiplomaticRelation | undefined
 ): string {
-  const config = FACTION_CONFIG[aiFaction.templateId]
+  const config = FACTION_CONFIG[aiFaction.id]
   const personality = config?.personality || 'opportunist'
   const relationValue = relation?.value || 0
   const wasBetrayed = relation?.history.some(h => h.type === 'treaty_broken')
-  const isAtWar = relation?.treaties.some(t => t.type === 'war' && t.active)
+  const isAtWar = relation?.treaties?.some(t => t.type === 'war' && t.isActive)
 
   if (wasBetrayed) {
     return `You have some nerve showing your face here after what you did. Speak quickly, before we change our mind about listening.`

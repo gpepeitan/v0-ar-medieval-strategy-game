@@ -1,39 +1,36 @@
 "use client"
 
 import { useGameStore } from "@/lib/game/store"
-import { FACTION_CONFIG } from "@/lib/game/constants"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
-import { 
-  Users, 
-  Sword, 
-  Shield, 
+import {
+  Users,
+  Sword,
+  Shield,
   Target,
-  ChevronRight,
   Footprints,
-  Horse,
   Crosshair,
   Anvil,
-  Star
+  Star,
+  Waypoints
 } from "lucide-react"
-import type { Army, Commander } from "@/lib/game/types"
+import type { Army, Commander, UnitStack } from "@/lib/game/types"
 
 export function ArmyPanel() {
-  const { 
-    armies, 
-    commanders, 
-    factions, 
-    playerFactionId,
-    territories,
-    selectedArmy,
-    setSelectedArmy
-  } = useGameStore()
+  const game = useGameStore(state => state.game)
+  const selectArmy = useGameStore(state => state.selectArmy)
 
-  const playerArmies = armies.filter(a => a.factionId === playerFactionId)
-  const playerCommanders = commanders.filter(c => c.factionId === playerFactionId)
+  if (!game) return null
+
+  const playerFaction = Array.from(game.factions.values()).find(f => f.isPlayer)
+  if (!playerFaction) return null
+
+  const playerArmies = Array.from(game.armies.values()).filter(a => a.ownerId === playerFaction.id)
+  const playerCommanders = Array.from(game.commanders.values()).filter(c => c.ownerId === playerFaction.id)
+  const selectedArmyId = game.selectedArmyId
 
   return (
     <ScrollArea className="h-full">
@@ -45,17 +42,17 @@ export function ArmyPanel() {
             <Sword className="h-4 w-4" />
             Armies ({playerArmies.length})
           </h3>
-          
+
           {playerArmies.length === 0 ? (
             <p className="text-sm text-muted-foreground">No armies raised</p>
           ) : (
             <div className="space-y-2">
               {playerArmies.map(army => (
-                <ArmyCard 
-                  key={army.id} 
+                <ArmyCard
+                  key={army.id}
                   army={army}
-                  isSelected={selectedArmy === army.id}
-                  onSelect={() => setSelectedArmy(army.id === selectedArmy ? null : army.id)}
+                  isSelected={selectedArmyId === army.id}
+                  onSelect={() => selectArmy(army.id === selectedArmyId ? null : army.id)}
                 />
               ))}
             </div>
@@ -69,7 +66,7 @@ export function ArmyPanel() {
             <Star className="h-4 w-4" />
             Commanders ({playerCommanders.length})
           </h3>
-          
+
           {playerCommanders.length === 0 ? (
             <p className="text-sm text-muted-foreground">No commanders</p>
           ) : (
@@ -98,52 +95,62 @@ export function ArmyPanel() {
   )
 }
 
-function ArmyCard({ 
-  army, 
+function getUnitCount(units: UnitStack[], type: string): number {
+  return units.filter(u => u.type === type).reduce((sum, u) => sum + u.count, 0)
+}
+
+function getTotalTroops(units: UnitStack[]): number {
+  return units.reduce((sum, u) => sum + u.count, 0)
+}
+
+function ArmyCard({
+  army,
   isSelected,
-  onSelect 
-}: { 
+  onSelect
+}: {
   army: Army
   isSelected: boolean
-  onSelect: () => void 
+  onSelect: () => void
 }) {
-  const { territories, factions } = useGameStore()
-  const territory = territories.find(t => t.id === army.currentTerritoryId)
-  const totalTroops = army.units.infantry + army.units.cavalry + army.units.archers + army.units.siegeEngines
-  const maxMorale = 100
+  const game = useGameStore(state => state.game)
+  const territory = game?.territories.get(army.currentTerritoryId)
+  const infantry = getUnitCount(army.units, 'heavy_infantry') + getUnitCount(army.units, 'light_infantry') + getUnitCount(army.units, 'levies')
+  const cavalry = getUnitCount(army.units, 'heavy_cavalry') + getUnitCount(army.units, 'light_cavalry')
+  const archers = getUnitCount(army.units, 'archers') + getUnitCount(army.units, 'crossbowmen')
+  const siege = getUnitCount(army.units, 'trebuchet') + getUnitCount(army.units, 'battering_ram') + getUnitCount(army.units, 'siege_tower') + getUnitCount(army.units, 'catapult')
+  const statusLabel = army.inBattle ? 'in battle' : army.isSieging ? 'besieging' : army.isRaiding ? 'raiding' : army.targetTerritoryId ? 'marching' : 'ready'
+  const statusVariant: 'default' | 'secondary' | 'destructive' = army.inBattle ? 'destructive' : army.targetTerritoryId ? 'secondary' : 'default'
 
   return (
-    <div 
+    <div
       className={`p-3 rounded-lg border cursor-pointer transition-all ${
-        isSelected 
-          ? 'border-primary bg-primary/10' 
+        isSelected
+          ? 'border-primary bg-primary/10'
           : 'border-border hover:border-primary/50'
       }`}
       onClick={onSelect}
     >
       <div className="flex items-center justify-between mb-2">
         <span className="font-semibold text-foreground">{army.name}</span>
-        <Badge variant={army.status === 'ready' ? 'default' : 'secondary'}>
-          {army.status}
-        </Badge>
+        <Badge variant={statusVariant}>{statusLabel}</Badge>
       </div>
-      
+
       <div className="grid grid-cols-4 gap-1 mb-2 text-xs">
         <div className="flex items-center gap-1 text-muted-foreground">
           <Footprints className="h-3 w-3" />
-          <span>{army.units.infantry}</span>
+          <span>{infantry}</span>
         </div>
         <div className="flex items-center gap-1 text-muted-foreground">
-          <Horse className="h-3 w-3" />
-          <span>{army.units.cavalry}</span>
+          <Waypoints className="h-3 w-3" />
+          <span>{cavalry}</span>
         </div>
         <div className="flex items-center gap-1 text-muted-foreground">
           <Crosshair className="h-3 w-3" />
-          <span>{army.units.archers}</span>
+          <span>{archers}</span>
         </div>
         <div className="flex items-center gap-1 text-muted-foreground">
           <Anvil className="h-3 w-3" />
-          <span>{army.units.siegeEngines}</span>
+          <span>{siege}</span>
         </div>
       </div>
 
@@ -156,7 +163,7 @@ function ArmyCard({
       </div>
 
       <p className="text-xs text-muted-foreground mt-2">
-        Location: {territory?.name || 'Unknown'}
+        Location: {territory?.name ?? 'Unknown'}
       </p>
 
       {isSelected && (
@@ -176,14 +183,15 @@ function ArmyCard({
 }
 
 function CommanderCard({ commander }: { commander: Commander }) {
-  const xpToNextLevel = commander.level * 100
-  const xpProgress = (commander.experience / xpToNextLevel) * 100
+  const level = Math.floor(commander.experience / 100) + 1
+  const xpToNextLevel = level * 100
+  const xpProgress = Math.min(100, (commander.experience / xpToNextLevel) * 100)
 
   return (
     <div className="p-3 rounded-lg border border-border">
       <div className="flex items-center justify-between mb-2">
         <span className="font-semibold text-foreground">{commander.name}</span>
-        <Badge variant="outline">Lvl {commander.level}</Badge>
+        <Badge variant="outline">Lvl {level}</Badge>
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-xs mb-2">
@@ -202,20 +210,20 @@ function CommanderCard({ commander }: { commander: Commander }) {
       </div>
 
       <p className="text-xs text-muted-foreground mt-2">
-        Age: {commander.age} | {commander.armyId ? 'Assigned' : 'Available'}
+        Age: {commander.age} | {commander.assignedArmyId ? 'Assigned' : 'Available'}
       </p>
     </div>
   )
 }
 
-function StatItem({ 
-  icon, 
-  label, 
-  value 
-}: { 
+function StatItem({
+  icon,
+  label,
+  value
+}: {
   icon: React.ReactNode
   label: string
-  value: number 
+  value: number
 }) {
   return (
     <div className="flex items-center gap-1 text-muted-foreground">

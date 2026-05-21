@@ -53,6 +53,81 @@ export const TERRAIN_MOVEMENT_COST: Record<TerrainType, number> = {
   desert: 1.8,
 }
 
+// Combined terrain config for UI display
+export const TERRAIN_CONFIG: Record<TerrainType, {
+  name: string
+  description: string
+  color: string
+  production: Partial<Record<'food' | 'gold' | 'wood' | 'stone' | 'iron' | 'tradeGoods', number>>
+  defenseBonus: number
+  movementCost: number
+}> = {
+  plains: {
+    name: 'Plains',
+    description: 'Fertile farmland with easy movement',
+    color: '#90b855',
+    production: TERRAIN_PRODUCTION.plains,
+    defenseBonus: TERRAIN_DEFENSE_BONUS.plains,
+    movementCost: TERRAIN_MOVEMENT_COST.plains,
+  },
+  hills: {
+    name: 'Hills',
+    description: 'Rocky terrain with mineral deposits',
+    color: '#a1887f',
+    production: TERRAIN_PRODUCTION.hills,
+    defenseBonus: TERRAIN_DEFENSE_BONUS.hills,
+    movementCost: TERRAIN_MOVEMENT_COST.hills,
+  },
+  mountains: {
+    name: 'Mountains',
+    description: 'Impassable peaks with valuable ores',
+    color: '#78909c',
+    production: TERRAIN_PRODUCTION.mountains,
+    defenseBonus: TERRAIN_DEFENSE_BONUS.mountains,
+    movementCost: TERRAIN_MOVEMENT_COST.mountains,
+  },
+  forest: {
+    name: 'Forest',
+    description: 'Dense woodland providing timber',
+    color: '#4a7c4e',
+    production: TERRAIN_PRODUCTION.forest,
+    defenseBonus: TERRAIN_DEFENSE_BONUS.forest,
+    movementCost: TERRAIN_MOVEMENT_COST.forest,
+  },
+  marsh: {
+    name: 'Marsh',
+    description: 'Swampy lowlands, difficult to traverse',
+    color: '#6d8b74',
+    production: TERRAIN_PRODUCTION.marsh,
+    defenseBonus: TERRAIN_DEFENSE_BONUS.marsh,
+    movementCost: TERRAIN_MOVEMENT_COST.marsh,
+  },
+  coastal: {
+    name: 'Coastal',
+    description: 'Shores ideal for fishing and trade',
+    color: '#64b5f6',
+    production: TERRAIN_PRODUCTION.coastal,
+    defenseBonus: TERRAIN_DEFENSE_BONUS.coastal,
+    movementCost: TERRAIN_MOVEMENT_COST.coastal,
+  },
+  river: {
+    name: 'River',
+    description: 'Riverlands with fertile soil and trade routes',
+    color: '#42a5f5',
+    production: TERRAIN_PRODUCTION.river,
+    defenseBonus: TERRAIN_DEFENSE_BONUS.river,
+    movementCost: TERRAIN_MOVEMENT_COST.river,
+  },
+  desert: {
+    name: 'Desert',
+    description: 'Arid wasteland with valuable trade routes',
+    color: '#e6c47f',
+    production: TERRAIN_PRODUCTION.desert,
+    defenseBonus: TERRAIN_DEFENSE_BONUS.desert,
+    movementCost: TERRAIN_MOVEMENT_COST.desert,
+  },
+}
+
 // ==================== UNIT CONSTANTS ====================
 
 export const UNIT_STATS: Record<UnitType, {
@@ -332,6 +407,34 @@ export const FACTION_DEFINITIONS: FactionDefinition[] = [
     bonuses: { siegeDefense: 30 },
   },
 ]
+
+// Convert FACTION_DEFINITIONS to a keyed object for easier access
+export const FACTION_CONFIG: Record<string, FactionDefinition & { strengths: string[], weaknesses: string[] }> = Object.fromEntries(
+  FACTION_DEFINITIONS.map(f => [
+    f.id,
+    {
+      ...f,
+      strengths: [f.startingBonus],
+      weaknesses: [getWeaknessForPersonality(f.personality)],
+    }
+  ])
+)
+
+function getWeaknessForPersonality(personality: AIPersonality): string {
+  const weaknesses: Record<AIPersonality, string> = {
+    militarist: 'Poor diplomacy',
+    merchant: 'Weak military',
+    diplomat: 'Slow expansion',
+    opportunist: 'Unpredictable allies',
+    raider: 'Poor defense',
+    expansionist: 'Overextension',
+    defender: 'Slow growth',
+  }
+  return weaknesses[personality]
+}
+
+// Alias for backwards compatibility
+export const FACTION_TEMPLATES = FACTION_DEFINITIONS
 
 // ==================== AI CONSTANTS ====================
 

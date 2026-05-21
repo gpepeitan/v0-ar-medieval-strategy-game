@@ -1,7 +1,7 @@
 "use client"
 
 import { useGameStore } from "@/lib/game/store"
-import { TERRAIN_CONFIG, FACTION_CONFIG } from "@/lib/game/constants"
+import { FACTION_CONFIG } from "@/lib/game/constants"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
@@ -18,18 +18,34 @@ import {
   X
 } from "lucide-react"
 
-export function TerritoryPanel() {
-  const { 
-    selectedTerritory, 
-    territories, 
-    factions, 
-    playerFactionId,
-    armies,
-    setSelectedTerritory,
-    startSiege
-  } = useGameStore()
+// Terrain display config
+const TERRAIN_DISPLAY: Record<string, { color: string; label: string }> = {
+  plains: { color: '#90b855', label: 'Plains' },
+  hills: { color: '#a1887f', label: 'Hills' },
+  mountains: { color: '#78909c', label: 'Mountains' },
+  forest: { color: '#4a7c4e', label: 'Forest' },
+  marsh: { color: '#6d8b74', label: 'Marsh' },
+  coastal: { color: '#64b5f6', label: 'Coastal' },
+  river: { color: '#42a5f5', label: 'River' },
+  desert: { color: '#e6c47f', label: 'Desert' },
+}
 
-  if (!selectedTerritory) {
+export function TerritoryPanel() {
+  const game = useGameStore(state => state.game)
+  const selectTerritory = useGameStore(state => state.selectTerritory)
+  const startSiege = useGameStore(state => state.startSiege)
+
+  if (!game) {
+    return (
+      <div className="p-4 text-muted-foreground text-center">
+        <Castle className="w-12 h-12 mx-auto mb-2 opacity-50" />
+        <p>No game loaded</p>
+      </div>
+    )
+  }
+
+  const selectedTerritoryId = game.selectedTerritoryId
+  if (!selectedTerritoryId) {
     return (
       <div className="p-4 text-muted-foreground text-center">
         <Castle className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -38,23 +54,30 @@ export function TerritoryPanel() {
     )
   }
 
-  const territory = territories.find(t => t.id === selectedTerritory)
+  const territory = game.territories.get(selectedTerritoryId)
   if (!territory) return null
 
-  const owner = territory.ownerId ? factions.find(f => f.id === territory.ownerId) : null
-  const factionConfig = owner ? FACTION_CONFIG[owner.templateId] : null
-  const terrainConfig = TERRAIN_CONFIG[territory.terrain]
-  const isPlayerOwned = territory.ownerId === playerFactionId
-  const playerFaction = factions.find(f => f.id === playerFactionId)
+  const owner = territory.ownerId ? game.factions.get(territory.ownerId) : null
+  const factionConfig = owner ? FACTION_CONFIG[owner.id] : null
+  const terrainDisplay = TERRAIN_DISPLAY[territory.terrain] || { color: '#666', label: territory.terrain }
+  const playerFaction = Array.from(game.factions.values()).find(f => f.isPlayer) ?? null
+  const playerFactionId = playerFaction?.id ?? null
   
-  const armiesInTerritory = armies.filter(a => a.currentTerritoryId === territory.id)
-  const playerArmies = armiesInTerritory.filter(a => a.factionId === playerFactionId)
-  const enemyArmies = armiesInTerritory.filter(a => a.factionId !== playerFactionId && a.factionId !== territory.ownerId)
+  const isPlayerOwned = territory.ownerId === playerFactionId
+  
+  // Find armies in this territory
+  const armiesInTerritory = Array.from(game.armies.values()).filter(a => 
+    a.currentTerritoryId === territory.id
+  )
+  const playerArmies = armiesInTerritory.filter(a => a.ownerId === playerFactionId)
+  const enemyArmies = armiesInTerritory.filter(a => 
+    a.ownerId !== playerFactionId && a.ownerId !== territory.ownerId
+  )
 
   const canAttack = !isPlayerOwned && 
     territory.ownerId && 
     playerArmies.length > 0 && 
-    !territory.siege
+    !territory.siegeState
 
   return (
     <ScrollArea className="h-full">
@@ -65,13 +88,13 @@ export function TerritoryPanel() {
             <div className="flex items-center gap-2 mt-1">
               <Badge 
                 variant="outline" 
-                className="text-xs"
+                className="text-xs capitalize"
                 style={{ 
-                  borderColor: terrainConfig?.color,
-                  color: terrainConfig?.color 
+                  borderColor: terrainDisplay.color,
+                  color: terrainDisplay.color 
                 }}
               >
-                {territory.terrain}
+                {terrainDisplay.label}
               </Badge>
               {territory.isCapital && (
                 <Badge variant="secondary" className="text-xs">Capital</Badge>
@@ -82,29 +105,29 @@ export function TerritoryPanel() {
             variant="ghost" 
             size="icon" 
             className="h-8 w-8"
-            onClick={() => setSelectedTerritory(null)}
+            onClick={() => selectTerritory(null)}
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        {owner && factionConfig && (
+        {owner && (
           <div 
             className="p-3 rounded-lg border"
             style={{ 
-              borderColor: factionConfig.color,
-              backgroundColor: `${factionConfig.color}10`
+              borderColor: owner.color,
+              backgroundColor: `${owner.color}10`
             }}
           >
             <div className="flex items-center gap-2">
               <div 
                 className="w-4 h-4 rounded-full"
-                style={{ backgroundColor: factionConfig.color }}
+                style={{ backgroundColor: owner.color }}
               />
               <span className="font-medium text-foreground">{owner.name}</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {factionConfig.personality} faction
+            <p className="text-xs text-muted-foreground mt-1 capitalize">
+              {owner.personality} faction
             </p>
           </div>
         )}
@@ -118,28 +141,12 @@ export function TerritoryPanel() {
         <Separator />
 
         <div>
-          <h3 className="text-sm font-semibold mb-2 text-foreground">Resources</h3>
+          <h3 className="text-sm font-semibold mb-2 text-foreground">Production</h3>
           <div className="grid grid-cols-2 gap-2">
-            <ResourceItem 
-              icon={<Coins className="h-4 w-4 text-yellow-500" />} 
-              label="Gold" 
-              value={`+${territory.resources.gold}/turn`} 
-            />
-            <ResourceItem 
-              icon={<Wheat className="h-4 w-4 text-amber-600" />} 
-              label="Food" 
-              value={`+${territory.resources.food}/turn`} 
-            />
-            <ResourceItem 
-              icon={<Trees className="h-4 w-4 text-green-600" />} 
-              label="Wood" 
-              value={`+${territory.resources.wood}/turn`} 
-            />
-            <ResourceItem 
-              icon={<Mountain className="h-4 w-4 text-stone-500" />} 
-              label="Stone" 
-              value={`+${territory.resources.stone}/turn`} 
-            />
+            <ResourceItem icon={<Coins className="h-4 w-4 text-yellow-500" />} label="Gold"  value={`+${territory.resourceProduction?.gold  ?? 0}/day`} />
+            <ResourceItem icon={<Wheat className="h-4 w-4 text-amber-600" />}  label="Food"  value={`+${territory.resourceProduction?.food  ?? 0}/day`} />
+            <ResourceItem icon={<Trees className="h-4 w-4 text-green-600" />}  label="Wood"  value={`+${territory.resourceProduction?.wood  ?? 0}/day`} />
+            <ResourceItem icon={<Mountain className="h-4 w-4 text-stone-500" />} label="Stone" value={`+${territory.resourceProduction?.stone ?? 0}/day`} />
           </div>
         </div>
 
@@ -150,22 +157,22 @@ export function TerritoryPanel() {
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Fort Level</span>
-              <span className="font-medium text-foreground">{territory.fortLevel}/5</span>
+              <span className="font-medium text-foreground">{territory.fortificationLevel}/5</span>
             </div>
             <div className="w-full bg-muted rounded-full h-2">
               <div 
                 className="bg-primary h-2 rounded-full transition-all"
-                style={{ width: `${(territory.fortLevel / 5) * 100}%` }}
+                style={{ width: `${(territory.fortificationLevel / 5) * 100}%` }}
               />
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Garrison</span>
-              <span className="font-medium text-foreground">{territory.garrison} troops</span>
+              <span className="text-sm text-muted-foreground">Population</span>
+              <span className="font-medium text-foreground">{territory.population?.toLocaleString() || 0}</span>
             </div>
           </div>
         </div>
 
-        {territory.siege && (
+        {territory.siegeState && (
           <>
             <Separator />
             <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
@@ -174,10 +181,10 @@ export function TerritoryPanel() {
                 <span className="font-semibold">Under Siege!</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Phase: {territory.siege.phase} | Day {territory.siege.daysElapsed}
+                Phase: {territory.siegeState.phase} | Day {territory.siegeState.daysElapsed}
               </p>
               <p className="text-xs text-muted-foreground">
-                Supplies: {territory.siege.defenderSupplies} remaining
+                Supplies: {territory.siegeState.defenderSupplies} remaining
               </p>
             </div>
           </>
@@ -192,16 +199,15 @@ export function TerritoryPanel() {
               </h3>
               <div className="space-y-2">
                 {armiesInTerritory.map(army => {
-                  const armyFaction = factions.find(f => f.id === army.factionId)
-                  const armyFactionConfig = armyFaction ? FACTION_CONFIG[armyFaction.templateId] : null
-                  const totalTroops = army.units.infantry + army.units.cavalry + army.units.archers + army.units.siegeEngines
+                  const armyFaction = game.factions.get(army.ownerId)
+                  const totalTroops = army.units.reduce((sum, u) => sum + u.count, 0)
                   return (
                     <div 
                       key={army.id}
                       className="p-2 rounded border text-sm"
                       style={{
-                        borderColor: armyFactionConfig?.color || '#666',
-                        backgroundColor: `${armyFactionConfig?.color || '#666'}10`
+                        borderColor: armyFaction?.color || '#666',
+                        backgroundColor: `${armyFaction?.color || '#666'}10`
                       }}
                     >
                       <div className="flex items-center justify-between">
