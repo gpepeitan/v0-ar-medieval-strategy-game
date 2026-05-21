@@ -574,3 +574,30 @@ export const COMMANDER_TRAITS = [
   'Tactical Genius', 'Siege Master', 'Cavalry Commander', 'Infantry Expert',
   'Logistics Expert', 'Inspiring', 'Feared', 'Lucky', 'Veteran', 'Young Prodigy',
 ]
+
+// ==================== DERIVED LOOKUPS ====================
+
+export const FACTION_CONFIG: Record<string, FactionDefinition> = Object.fromEntries(
+  FACTION_DEFINITIONS.map(d => [d.id, d])
+)
+
+export const TERRAIN_CONFIG: Record<string, { color: string; label: string }> = {
+  plains:    { color: '#86efac', label: 'Plains' },
+  hills:     { color: '#d97706', label: 'Hills' },
+  mountains: { color: '#94a3b8', label: 'Mountains' },
+  forest:    { color: '#16a34a', label: 'Forest' },
+  marsh:     { color: '#0e7490', label: 'Marsh' },
+  coastal:   { color: '#3b82f6', label: 'Coastal' },
+  river:     { color: '#60a5fa', label: 'River' },
+  desert:    { color: '#ca8a04', label: 'Desert' },
+}
+
+export const AI_PERSONALITIES = [
+  'expansionist',
+  'merchant',
+  'militarist',
+  'diplomat',
+  'opportunist',
+  'raider',
+  'defender',
+] as const
