@@ -1,9 +1,8 @@
-"use client"
+'use client'
 
 import { useGameStore } from "@/lib/game/store"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { 
   Coins, 
@@ -12,42 +11,40 @@ import {
   Mountain,
   Anvil,
   Package,
-  TrendingUp,
-  TrendingDown,
-  Building2,
-  ArrowRight
+  Building2
 } from "lucide-react"
+import type { Population } from "@/lib/game/types"
+
+function totalPop(pop: Population) {
+  return pop.peasants + pop.craftsmen + pop.merchants + pop.soldiers + pop.nobles
+}
 
 export function EconomyPanel() {
-  const { 
-    factions, 
-    playerFactionId,
-    territories,
-    tradeRoutes
-  } = useGameStore()
+  const game = useGameStore(state => state.game)
 
-  const playerFaction = factions.find(f => f.id === playerFactionId)
+  if (!game) return null
+
+  const playerFactionId = Array.from(game.factions.values()).find(f => f.isPlayer)?.id ?? ""
+  const playerFaction = game.factions.get(playerFactionId)
   if (!playerFaction) return null
 
+  const territories = Array.from(game.territories.values())
   const playerTerritories = territories.filter(t => t.ownerId === playerFactionId)
-  
-  // Calculate total income
+
   const totalIncome = playerTerritories.reduce((acc, t) => ({
-    gold: acc.gold + t.resources.gold,
-    food: acc.food + t.resources.food,
-    wood: acc.wood + t.resources.wood,
-    stone: acc.stone + t.resources.stone,
-    iron: acc.iron + t.resources.iron,
-    tradeGoods: acc.tradeGoods + t.resources.tradeGoods
+    gold: acc.gold + t.resourceProduction.gold,
+    food: acc.food + t.resourceProduction.food,
+    wood: acc.wood + t.resourceProduction.wood,
+    stone: acc.stone + t.resourceProduction.stone,
+    iron: acc.iron + t.resourceProduction.iron,
+    tradeGoods: acc.tradeGoods + t.resourceProduction.tradeGoods,
   }), { gold: 0, food: 0, wood: 0, stone: 0, iron: 0, tradeGoods: 0 })
 
-  // Estimate expenses (simplified)
-  const armyUpkeep = Math.floor(playerFaction.resources.gold * 0.1)
+  const armyUpkeep = playerFaction.armies.length * 10
   const buildingUpkeep = playerTerritories.length * 5
+  const netGold = totalIncome.gold - armyUpkeep - buildingUpkeep
 
-  const playerTradeRoutes = tradeRoutes.filter(
-    r => r.faction1Id === playerFactionId || r.faction2Id === playerFactionId
-  )
+  const totalPopulation = playerTerritories.reduce((acc, t) => acc + totalPop(t.population), 0)
 
   return (
     <ScrollArea className="h-full">
@@ -57,37 +54,37 @@ export function EconomyPanel() {
         <div>
           <h3 className="text-sm font-semibold mb-2 text-foreground">Treasury</h3>
           <div className="grid grid-cols-2 gap-2">
-            <ResourceDisplay 
+            <ResourceDisplay
               icon={<Coins className="h-5 w-5 text-yellow-500" />}
               label="Gold"
               value={playerFaction.resources.gold}
-              income={totalIncome.gold - armyUpkeep - buildingUpkeep}
+              income={netGold}
             />
-            <ResourceDisplay 
+            <ResourceDisplay
               icon={<Wheat className="h-5 w-5 text-amber-600" />}
               label="Food"
               value={playerFaction.resources.food}
               income={totalIncome.food}
             />
-            <ResourceDisplay 
+            <ResourceDisplay
               icon={<Trees className="h-5 w-5 text-green-600" />}
               label="Wood"
               value={playerFaction.resources.wood}
               income={totalIncome.wood}
             />
-            <ResourceDisplay 
+            <ResourceDisplay
               icon={<Mountain className="h-5 w-5 text-stone-500" />}
               label="Stone"
               value={playerFaction.resources.stone}
               income={totalIncome.stone}
             />
-            <ResourceDisplay 
+            <ResourceDisplay
               icon={<Anvil className="h-5 w-5 text-slate-400" />}
               label="Iron"
               value={playerFaction.resources.iron}
               income={totalIncome.iron}
             />
-            <ResourceDisplay 
+            <ResourceDisplay
               icon={<Package className="h-5 w-5 text-purple-500" />}
               label="Trade Goods"
               value={playerFaction.resources.tradeGoods}
@@ -103,15 +100,11 @@ export function EconomyPanel() {
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Total Population</span>
-              <span className="font-medium text-foreground">
-                {playerTerritories.reduce((acc, t) => acc + t.population, 0).toLocaleString()}
-              </span>
+              <span className="font-medium text-foreground">{totalPopulation.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Available Labor</span>
-              <span className="font-medium text-foreground">
-                {Math.floor(playerTerritories.reduce((acc, t) => acc + t.population * 0.3, 0)).toLocaleString()}
-              </span>
+              <span className="text-sm text-muted-foreground">Territories</span>
+              <span className="font-medium text-foreground">{playerTerritories.length}</span>
             </div>
           </div>
         </div>
@@ -123,49 +116,14 @@ export function EconomyPanel() {
           <div className="space-y-2">
             <ExpenseRow label="Army Upkeep" value={armyUpkeep} />
             <ExpenseRow label="Building Maintenance" value={buildingUpkeep} />
-            <ExpenseRow label="Garrison Wages" value={playerTerritories.reduce((acc, t) => acc + t.garrison, 0)} />
           </div>
           <Separator className="my-2" />
           <div className="flex justify-between items-center font-semibold">
             <span className="text-foreground">Net Income</span>
-            <span className={totalIncome.gold - armyUpkeep - buildingUpkeep >= 0 ? 'text-green-500' : 'text-red-500'}>
-              {totalIncome.gold - armyUpkeep - buildingUpkeep >= 0 ? '+' : ''}
-              {totalIncome.gold - armyUpkeep - buildingUpkeep} gold/turn
+            <span className={netGold >= 0 ? 'text-green-500' : 'text-red-500'}>
+              {netGold >= 0 ? '+' : ''}{netGold} gold/turn
             </span>
           </div>
-        </div>
-
-        <Separator />
-
-        <div>
-          <h3 className="text-sm font-semibold mb-2 text-foreground">
-            Trade Routes ({playerTradeRoutes.length})
-          </h3>
-          {playerTradeRoutes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No active trade routes</p>
-          ) : (
-            <div className="space-y-2">
-              {playerTradeRoutes.map(route => {
-                const from = territories.find(t => t.id === route.territory1Id)
-                const to = territories.find(t => t.id === route.territory2Id)
-                return (
-                  <div 
-                    key={route.id}
-                    className="p-2 rounded border border-border text-sm"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-foreground">{from?.name}</span>
-                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-foreground">{to?.name}</span>
-                    </div>
-                    <p className="text-xs text-green-500">
-                      +{route.goldPerTurn} gold/turn
-                    </p>
-                  </div>
-                )
-              })}
-            </div>
-          )}
         </div>
 
         <Separator />
@@ -185,16 +143,8 @@ export function EconomyPanel() {
   )
 }
 
-function ResourceDisplay({ 
-  icon, 
-  label, 
-  value, 
-  income 
-}: { 
-  icon: React.ReactNode
-  label: string
-  value: number
-  income: number 
+function ResourceDisplay({ icon, label, value, income }: {
+  icon: React.ReactNode; label: string; value: number; income: number
 }) {
   return (
     <div className="p-3 rounded-lg bg-muted/50 border border-border">
@@ -203,7 +153,7 @@ function ResourceDisplay({
         <span className="text-sm text-muted-foreground">{label}</span>
       </div>
       <div className="flex items-baseline justify-between">
-        <span className="text-lg font-bold text-foreground">{value.toLocaleString()}</span>
+        <span className="text-lg font-bold text-foreground">{Math.floor(value).toLocaleString()}</span>
         <span className={`text-xs ${income >= 0 ? 'text-green-500' : 'text-red-500'}`}>
           {income >= 0 ? '+' : ''}{income}/turn
         </span>
