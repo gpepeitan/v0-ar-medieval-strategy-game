@@ -1,0 +1,1 @@
+This folder now contains the initial Unity gameplay foundation for MedievalAR.
