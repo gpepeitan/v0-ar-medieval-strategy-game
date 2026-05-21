@@ -39,3 +39,4 @@ Keep docs organized, explicit, and consistent so other agents can continue safel
 - Prefer additive, traceable edits.
 - Leave breadcrumbs when making important decisions.
 - Keep the repository easy for the next AI to understand and continue.
+- End every substantive update with a handoff: what was done, what remains, and the most important next step.

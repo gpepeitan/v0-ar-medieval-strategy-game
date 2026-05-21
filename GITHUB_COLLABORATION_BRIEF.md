@@ -38,6 +38,8 @@ Codex can work directly in Unity and GitHub, and Zo, Echo, and Claude should all
 - Leave breadcrumbs when a rule changes.
 - Do not overwrite core balance lightly.
 - Favor additive changes and clear rationale.
+- When finishing a task, leave a handoff that says: what was done, what remains, and the most important next step.
+- Make the next AI smarter by being specific about state, gaps, and intent.
 
 ## GitHub identity needed for collaboration
 
@@ -59,6 +61,7 @@ Ask the human owner to choose the account or App name.
 - Unity project files and balance docs should stay in sync.
 - Keep docs readable enough that another AI can continue without guessing.
 - Small, traceable updates are better than giant unstructured rewrites.
+- End each substantive update with a concise handoff.
 
 ## Practical rule
 

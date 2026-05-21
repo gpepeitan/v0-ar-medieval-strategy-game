@@ -410,6 +410,15 @@ When working in this repo:
 - Do not build a system where the player cannot see what they own.
 - Do not let AI enemies exist only as invisible numbers.
 
+### Required handoff rule
+
+When any AI finishes a substantive task, it must end with a concise handoff that says:
+- what was done
+- what remains
+- the single most important next step for the next AI
+
+This handoff should be explicit and brief enough that the next AI can continue without guessing.
+
 ---
 
 ## 12. Near-Term Implementation Goal
