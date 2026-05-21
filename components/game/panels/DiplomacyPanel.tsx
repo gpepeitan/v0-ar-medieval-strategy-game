@@ -4,16 +4,14 @@ import { useGameStore } from "@/lib/game/store"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
-import { 
+import {
   Flag, Swords, Handshake, MessageSquare,
   TrendingUp, Minus, Heart, Skull, ShieldAlert
 } from "lucide-react"
-import type { Faction, DiplomaticRelation } from "@/lib/game/types"
+import type { DiplomaticRelation } from "@/lib/game/types"
 
 export function DiplomacyPanel() {
   const game = useGameStore(state => state.game)
-  const ui = useGameStore(state => state.ui)
-  const setActivePanel = useGameStore(state => state.setActivePanel)
   const openNegotiation = useGameStore(state => state.openNegotiation)
 
   if (!game) return null
@@ -24,10 +22,9 @@ export function DiplomacyPanel() {
   const otherFactions = Array.from(game.factions.values())
     .filter(f => !f.isPlayer && !f.isDefeated)
 
+  // relations is Map<string, DiplomaticRelation>
   const getRelation = (factionId: string): DiplomaticRelation | undefined => {
-    return playerFaction.relations.find(
-      r => r.factionId === factionId || r.targetId === factionId
-    ) ?? undefined
+    return playerFaction.relations.get(factionId)
   }
 
   const getRelationValue = (rel: DiplomaticRelation | undefined): number => rel?.value ?? 0
@@ -70,21 +67,21 @@ export function DiplomacyPanel() {
             const relation = getRelation(faction.id)
             const relationValue = getRelationValue(relation)
             const isAtWar = relation?.status === 'war'
-            const hasAlliance = relation?.status === 'alliance'
-            const hasTrade = relation?.treaties?.some(t => t.type === 'trade_agreement' && t.isActive) ?? false
+            const hasAlliance = relation?.status === 'allied'
+            // TreatyType uses 'trade' not 'trade_agreement'
+            const hasTrade = relation?.treaties?.some(t => t.type === 'trade' && t.isActive) ?? false
 
-            // Count territories and armies for strength display
             const territoryCount = faction.territories.length
             const armyCount = faction.armies.length
 
             return (
-              <div 
+              <div
                 key={faction.id}
                 className="p-3 rounded-lg border border-border hover:border-primary/50 transition-colors"
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <div 
+                    <div
                       className="w-4 h-4 rounded-full border border-border"
                       style={{ backgroundColor: faction.color }}
                     />
@@ -132,9 +129,9 @@ export function DiplomacyPanel() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
+                  <Button
+                    size="sm"
+                    variant="outline"
                     className="flex-1"
                     onClick={() => openNegotiation(faction.id)}
                   >
