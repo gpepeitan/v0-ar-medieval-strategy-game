@@ -10,6 +10,14 @@ Use this document when you need to understand:
 - what should be tuned next
 - what not to break
 
+## Collaboration note
+
+Before editing, read the master docs and the relevant supporting doc for the area you are changing.
+When you finish, always end with a concise handoff:
+- what was done
+- what remains
+- the most important next step for the next AI
+
 If this document conflicts with a narrow balance draft, the master balance docs still control the numbers.
 If this document conflicts with code, the docs win unless the code change is explicitly intentional and documented.
 

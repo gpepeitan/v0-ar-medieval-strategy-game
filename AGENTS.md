@@ -1,5 +1,13 @@
 # MedievalAR Project Memory
 
+## Required reading
+
+Before editing anything in this repo, read:
+- `MEDIEVALAR_MASTER_MASTER.md`
+- `GAMEPLAY_BALANCE_MASTER.md`
+- the relevant supporting doc for the area you are touching
+- `GITHUB_COLLABORATION_BRIEF.md`
+
 ## What this project is
 
 MedievalAR is a persistent medieval AR strategy game built in Unity 6000+.

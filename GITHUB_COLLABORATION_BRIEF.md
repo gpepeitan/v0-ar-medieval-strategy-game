@@ -5,6 +5,29 @@
 This repo is shared work for multiple AIs and the human owner.
 Codex can work directly in Unity and GitHub, and Zo, Echo, and Claude should all be able to continue from the same source of truth.
 
+## Required reading before editing
+
+Before touching code or docs, every AI should read:
+- `MEDIEVALAR_MASTER_MASTER.md`
+- `GAMEPLAY_BALANCE_MASTER.md`
+- the relevant supporting doc for the feature area
+- `AGENTS.md`
+- this brief
+
+Then report back in plain language:
+- what the game is
+- what the fixed rules are
+- what is already done
+- what still needs to be built
+- the single most important next step
+
+## Handoff rule
+
+When finishing any substantive update, always end with:
+- what was done
+- what remains
+- the most important next step for the next AI
+
 ## Project basics
 
 - Game: persistent medieval AR strategy
