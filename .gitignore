@@ -13,3 +13,20 @@ __v0_jsx-dev-runtime.ts
 node_modules
 .next/
 .DS_Store
+# Local Codex/Ruflo/tooling generated on this machine
+.tools/
+.downloads/
+.npm-cache/
+.codex/
+.claude-flow/
+.swarm/
+ruvector.db
+activate-local-dev.ps1
+repo/
+.agents/
+.claude/
+.mcp.json
+AGENTS.md
+CLAUDE.md
+package-lock.json
+tsconfig.tsbuildinfo
