@@ -34,9 +34,12 @@ The game must not collapse the world into a single monolithic enemy list. Broad 
 Rules:
 
 - Each broad faction may spawn multiple breakaway nations or local polity fragments.
+- Breakaways must vary in scale. Some should be large regional powers; others should be small enclaves, holdouts, or compact city-states.
 - Faction identity and polity identity are not the same thing.
 - Different polity instances may share the same faction culture, unit roster, iconography, and diplomacy baseline while still acting as separate rulers.
 - Players choosing the same faction are not the same actor; they are separate political instances with distinct names, goals, diplomacy, and claim maps.
+- Same-faction polities should generally start with a better diplomatic baseline toward each other than toward outside factions, but they are not automatically loyal, aligned, or safe.
+- Breakaways may cooperate, compete, spy, extort, defect, feud, or go to war with same-faction polities depending on local conditions.
 - The same physical town can contain multiple claims from the same broad faction, controlled by different AI rulers.
 - Keep the visible political landscape readable. Do not spawn 11 or 12 generic enemies; instead, surface a smaller number of meaningful political actors with nested breakaway states.
 
@@ -44,6 +47,8 @@ Example:
 
 - Great Neck may contain two Byzantine claims controlled by two different Byzantine AI polities.
 - Those claims should be diplomatically and mechanically distinct even though they share a culture tag.
+- One may be a large, established Byzantine breakaway while another is a small, opportunistic enclave.
+- They should usually get along better with each other than with outsiders, but they may still be rivals, rivals under truce, or outright enemies.
 
 ## Unit, Building, and Resource Granularity
 
@@ -88,36 +93,17 @@ Leaflet component layers must actively read and render global OSM amenity and la
 Parks, forests, woodland, grassland, nature reserves, community gardens, farms, allotments, and similar green features must display interactive `Forest` resource tags. Forest tags produce or influence:
 
 - Wood.
-- Livestock forage.
-- Woodland concealment.
-- Seasonal agriculture adjacency.
-- Ambush probability.
+- Concealment.
+- Ambush risk.
+- Patrol visibility.
+- Seasonal yield shifts.
 
-Construction sites, quarries, industrial areas, mines, warehouses, factories, workshops, rail yards, material suppliers, brownfields, and heavy commercial centers must display interactive `Quarry` resource tags. Quarry tags produce or influence:
+Other land-use features should also matter:
 
-- Stone.
-- Iron.
-- Construction throughput.
-- Repair capacity.
-- Siege equipment staging.
-
-Residential buildings, apartments, houses, dormitories, mixed-use blocks, shelters, and neighborhood housing clusters must display interactive `Settlements` tags. Settlement tags produce or influence:
-
-- Labor.
-- Population.
-- Recruitment capacity.
-- Local unrest.
-- Consumption demand.
-- Nighttime activity patterns.
-
-Floating resource icons must render directly over their spatial points, anchored to the underlying OSM geometry. Icons must:
-
-- Cluster at low zoom.
-- Separate into exact points or polygon centroids at high zoom.
-- Remain clickable/tappable.
-- Expose source tags and game classification in the inspection panel.
-- Update when refreshed OSM data changes classification.
-- Respect fog-of-war visibility.
+- Water features can support fisheries, travel blocking, and siege logistics.
+- Agricultural land can raise food supply and peasant labor value.
+- Industrial and commercial land can support production and toll-based revenue.
+- Dense urban areas can concentrate labor, diplomacy, and control pressure.
 
 ## Territory Claims
 
@@ -206,48 +192,16 @@ Tick jobs must process, in order:
 
 ## Movement And Routing
 
-Asset movement and army marching must use physical OpenStreetMap routing data. Movement duration is measured in real-world minutes or hours, calculated from actual OSM street paths and modifiers.
+Asset movement and army marching must use physical OpenStreetMap routing data. Movement duration is measured in real-world minutes or hours derived from route distance, surface type, congestion, weather, and unit burden.
 
-Routing must consider:
+Rules:
 
-- OSM highway class.
-- Foot, bicycle, vehicle, and access tags.
-- Surface quality.
-- Bridges and tunnels.
-- Barriers, gates, waterways, rail crossings, and disconnected ways.
-- Elevation when available.
-- Real route distance.
-- Unit type.
-- Encumbrance and supply.
-- Weather.
-- Day/night state.
-- Enemy control and ambush risk.
-
-Movement must not teleport between abstract territories. Every moving army banner or asset convoy must have:
-
-- Origin coordinate.
-- Destination coordinate.
-- Chosen OSM route.
-- Current route progress.
-- Estimated arrival time in real-world time.
-- Estimated arrival time in game time.
-- Current speed multiplier.
-- Weather and night penalties.
-- Interception windows.
-- Visibility state.
-
-Recommended base speeds:
-
-- Foot army banner: 4.5 km/h before modifiers.
-- Mounted or light vehicle convoy: route-class dependent, capped by local road type.
-- Heavy equipment: slow route-class dependent speed with major penalties for unsuitable streets.
-- Scout: faster foot movement, lower road dependency, improved night behavior.
-
-Real weather and street conditions must apply multiplicative penalties. For example:
-
-- Rain: reduce movement speed based on intensity and surface type.
-- Snow: reduce speed more sharply, especially on minor roads, paths, and unsurfaced ways.
-- Night: reduce speed for labor and heavy movement, but may increase stealth for scouts.
+- Route choice must prefer walkable or drivable OSM paths when appropriate.
+- Movement over bridges, ferries, narrow paths, and rough surfaces must respect the terrain and access rules.
+- Movement through hostile or contested claims should be slower and riskier.
+- Marching through friendly same-faction breakaways may be faster or safer, but never free by default.
+- Movement state must be visible, interruptible, and resumable.
+- AI and client simulations must agree on the same route cost logic.
 
 ## Eco-System Sync
 
@@ -319,7 +273,7 @@ type SimulationWeather = {
 };
 ```
 
-Open-Meteo requests should include the active latitude and longitude plus current and hourly fields needed for movement, agriculture, visibility, and day/night calculations.
+Open-Meteo requests should include the active latitude and longitude plus current and hourly fields needed for movement, agriculture, labor, daylight, and precipitation effects.
 
 ## Simulation State
 
@@ -371,16 +325,17 @@ The interface must remain readable and usable on desktop and mobile. Floating ma
 
 ## Visual Presentation Standard
 
-The game must be presented as detailed and tactile, not as dots on a map.
+The world must be as detailed as possible and never reduce to dots as a primary view.
 
 Rules:
 
-- Use detailed 3D models where possible for units, buildings, defenses, and landmarks.
-- Primary asset format should be modular glTF or GLB models unless the implementation explicitly documents another format.
-- Use Level of Detail behavior to preserve performance at distance, but keep the close view rich and recognizable.
-- Low-zoom clustering may simplify presentation, but high-zoom gameplay must resolve into distinct soldiers, civilians, buildings, roads, fortifications, and resource sites.
-- Do not rely on dot-only markers as the main visual language.
-- Temporary placeholders are acceptable during development, but the target standard is a world that feels built, occupied, and geographically specific.
+- Claimable structures should render as actual scene objects or rich iconified representations at all practical zoom levels.
+- Villagers, soldiers, and workers should have readable sprites or 3D stand-ins.
+- Resources should be drawn on the map where they exist, not as generic counters.
+- Settlements, roads, gates, and defenses must feel like a lived-in place, not a token layer.
+- Low-zoom aggregation is acceptable only as a fallback, not as the main presentation.
+- 3D or pseudo-3D models should be used wherever the runtime budget allows.
+- If a model is not available, use a consistent placeholder form rather than a dot.
 
 ## Backend Requirements
 
@@ -429,6 +384,62 @@ The architecture implementation is acceptable when:
 - Seasonal logic changes production based on coordinate and date.
 - Day/night logic follows local sunrise and sunset.
 - The simulation clock maps 1 real-world hour to 1 in-game day.
+- The tick loop targets 15 real-world minutes.
+- Movement orders calculate real-world arrival durations from OSM routing data.
+- Local and cloud agents can parse this file without extra human explanation.
+
+## Phase 1 Core Build Order
+
+Phase 1 should prioritize the core loop in this order:
+
+1. Geolocation bootstrap and map load.
+2. OSM resource and claim feature ingestion.
+3. Weather hook integration.
+4. Independent entity rendering for units, buildings, and defenses.
+5. Claim expansion and contest logic.
+6. Diplomacy, tolls, and faction breakaway state.
+7. Event log, notifications, and player feedback.
+8. Persistence and replayable simulation state.
+
+## Non-Negotiable Output for Agents
+
+When an agent proposes or implements a feature, it must explicitly state:
+
+- Which map objects are created.
+- Which entities remain independent.
+- What becomes visible at each zoom band.
+- How same-faction breakaways are differentiated.
+- How tolls, diplomacy, and weather affect movement or claims.
+
+If a change cannot answer those questions, it is not ready for implementation.
+
+## AI and Simulation Expectations
+
+AI behavior must reason at the polity level and at the local claim level.
+
+- Same-faction breakaways should be aware of each other.
+- Diplomatic decisions should be impacted by local control, toll policy, and trade routes.
+- Claim logic must remain local, map-driven, and readable.
+- The simulation must support layered political identity without losing individual ruler autonomy.
+
+## Verification Expectations
+
+Implementation should be validated against:
+
+- Responsive Leaflet interaction at multiple zoom levels.
+- Object-rich representations of units, structures, and resource sites.
+- Faction-shared but polity-distinct diplomacy.
+- Toll behavior along route graphs.
+- Weather-sensitive movement and yield changes.
+- Independent claims inside the same physical town.
+- Deployment-ready environment configuration.
+
+For routing, prefer proven routing engines or deterministic route-cost services over hand-wavy approximations.
+
+## Summary for Human and Agents
+
+This game is about local, lived-in strategic control. The player should see real places, real objects, real factions, and real friction. Same-faction breakaways can share roots and still hate, fear, tax, extort, or outcompete each other. The map should feel like a dense, operational world with independent people, buildings, defenses, and resources everywhere they belong.
+
 - The tick loop targets 15 real-world minutes.
 - Movement orders calculate real-world arrival durations from OSM routing data.
 - Local and cloud agents can parse this file without extra human explanation.
