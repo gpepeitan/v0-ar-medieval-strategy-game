@@ -259,8 +259,15 @@ function PhaseOneTelemetryOverlay() {
         <div className="mb-1 font-semibold text-sky-300">Environment sync</div>
         <div className="flex justify-between"><span>Open-Meteo</span><span className="capitalize">{weather.status}</span></div>
         <div className="flex justify-between"><span>Movement</span><span>{Math.round(weather.movementMultiplier * 100)}%</span></div>
+        <div className="flex justify-between"><span>Penalty</span><span>{weather.movementPenaltyPercent}%</span></div>
+        <div className="flex justify-between"><span>Production</span><span>{weather.productionDeltaPercent > 0 ? '+' : ''}{weather.productionDeltaPercent}%</span></div>
         <div className="flex justify-between"><span>Season</span><span className="capitalize">{weather.season}</span></div>
         <div className="flex justify-between"><span>Visibility</span><span>{Math.round(weather.visibilityMultiplier * 100)}%</span></div>
+        <div className="mt-2 border-t border-slate-800 pt-2 text-slate-400">
+          {weather.penaltyReasons.slice(0, 3).map(reason => (
+            <div key={reason}>{reason}</div>
+          ))}
+        </div>
       </div>
 
       <div className="mt-3 border border-slate-800 bg-slate-900/80 p-2">

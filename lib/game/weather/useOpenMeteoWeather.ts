@@ -80,12 +80,26 @@ function calculateModifiers(options: {
   const springBonus = options.season === 'spring' ? 0.12 : 0
   const freezingPenalty = options.temperatureC !== null && options.temperatureC <= 0 ? 0.18 : 0
 
+  const movementMultiplier = Math.max(0.25, 1 - rainPenalty - snowPenalty - nightPenalty)
+  const agricultureMultiplier = Math.max(0.35, 1 - winterPenalty - freezingPenalty + springBonus)
+  const reasons: string[] = []
+
+  if (rainPenalty > 0) reasons.push(`Rain drag ${Math.round(rainPenalty * 100)}%`)
+  if (snowPenalty > 0) reasons.push(`Snow drag ${Math.round(snowPenalty * 100)}%`)
+  if (nightPenalty > 0) reasons.push(`Low-light operations ${Math.round(nightPenalty * 100)}%`)
+  if (freezingPenalty > 0) reasons.push(`Freezing production drag ${Math.round(freezingPenalty * 100)}%`)
+  if (springBonus > 0) reasons.push(`Spring production lift ${Math.round(springBonus * 100)}%`)
+  if (options.season === 'winter') reasons.push('Winter yield compression active')
+
   return {
-    movementMultiplier: Math.max(0.25, 1 - rainPenalty - snowPenalty - nightPenalty),
-    agricultureMultiplier: Math.max(0.35, 1 - winterPenalty - freezingPenalty + springBonus),
+    movementMultiplier,
+    agricultureMultiplier,
     laborMultiplier: Math.max(0.45, 1 - nightPenalty - freezingPenalty * 0.5),
     visibilityMultiplier: Math.max(0.25, 1 - nightPenalty * 2 - rainPenalty * 0.5 - snowPenalty * 0.4),
     ambushMultiplier: 1 + (options.daylightPhase === 'night' ? 0.35 : 0) + (options.snowfallCm > 0 ? 0.12 : 0),
+    penaltyReasons: reasons.length > 0 ? reasons : ['No active weather penalties'],
+    movementPenaltyPercent: Math.round((1 - movementMultiplier) * 100),
+    productionDeltaPercent: Math.round((agricultureMultiplier - 1) * 100),
   }
 }
 
@@ -150,6 +164,9 @@ export function useOpenMeteoWeather(coordinate: Coordinate | null) {
         source: 'open-meteo',
         status: 'loading',
         error: null,
+        penaltyReasons: ['Loading Open-Meteo feed'],
+        movementPenaltyPercent: 0,
+        productionDeltaPercent: 0,
         movementMultiplier: 1,
         agricultureMultiplier: 1,
         laborMultiplier: 1,
@@ -191,6 +208,9 @@ export function useOpenMeteoWeather(coordinate: Coordinate | null) {
           source: 'open-meteo',
           status: 'error',
           error: message,
+          penaltyReasons: ['Weather feed unavailable; fallback modifiers active'],
+          movementPenaltyPercent: 0,
+          productionDeltaPercent: 0,
           movementMultiplier: 1,
           agricultureMultiplier: 1,
           laborMultiplier: 1,

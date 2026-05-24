@@ -71,6 +71,9 @@ export interface WeatherSnapshot extends EnvironmentModifiers {
   source: 'open-meteo' | 'fallback'
   status: 'idle' | 'loading' | 'ready' | 'error'
   error: string | null
+  penaltyReasons: string[]
+  movementPenaltyPercent: number
+  productionDeltaPercent: number
 }
 
 export interface OsmClaimFeature {
@@ -161,6 +164,9 @@ const fallbackWeather: WeatherSnapshot = {
   source: 'fallback',
   status: 'idle',
   error: null,
+  penaltyReasons: [],
+  movementPenaltyPercent: 0,
+  productionDeltaPercent: 0,
   movementMultiplier: 1,
   agricultureMultiplier: 1,
   laborMultiplier: 1,
