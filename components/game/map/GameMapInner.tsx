@@ -312,6 +312,13 @@ function OsmClaimLayer() {
               <div className="font-bold text-sm text-slate-100">{feature.name}</div>
               <div className="text-xs text-amber-300">{feature.resourceTag}</div>
               <div className="text-xs text-slate-400">Influence {Math.round(feature.influence * 100)}%</div>
+              {Object.entries(feature.resourceYield).length > 0 && (
+                <div className="mt-1 text-xs text-slate-400">
+                  {Object.entries(feature.resourceYield)
+                    .map(([resource, value]) => `${resource}: ${value}`)
+                    .join(' / ')}
+                </div>
+              )}
               {feature.claimedBy && <div className="text-xs text-emerald-300">Claimed by engine</div>}
             </div>
           </Tooltip>

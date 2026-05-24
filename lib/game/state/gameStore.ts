@@ -80,6 +80,7 @@ export interface OsmClaimFeature {
   name: string
   coordinate: Coordinate
   resourceTag: ResourceTag
+  resourceYield: Partial<Record<'wood' | 'livestockForage' | 'stone' | 'iron' | 'labor' | 'population', number>>
   sourceTags: Record<string, string>
   claimedBy: string | null
   influence: number

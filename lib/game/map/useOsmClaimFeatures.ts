@@ -32,6 +32,8 @@ function classifyResource(tags: Record<string, string>): ResourceTag | null {
   const building = tags.building
 
   if (
+    amenity === 'park' ||
+    amenity === 'community_centre' ||
     leisure === 'park' ||
     leisure === 'garden' ||
     natural === 'wood' ||
@@ -49,8 +51,11 @@ function classifyResource(tags: Record<string, string>): ResourceTag | null {
     landuse === 'industrial' ||
     landuse === 'quarry' ||
     landuse === 'construction' ||
+    amenity === 'industrial' ||
     amenity === 'workshop' ||
     amenity === 'marketplace' ||
+    tags.shop === 'trade' ||
+    tags.office === 'industrial' ||
     building === 'industrial' ||
     building === 'warehouse'
   ) {
@@ -59,6 +64,10 @@ function classifyResource(tags: Record<string, string>): ResourceTag | null {
 
   if (
     landuse === 'residential' ||
+    amenity === 'shelter' ||
+    amenity === 'school' ||
+    amenity === 'college' ||
+    amenity === 'university' ||
     building === 'residential' ||
     building === 'apartments' ||
     building === 'house' ||
@@ -72,6 +81,31 @@ function classifyResource(tags: Record<string, string>): ResourceTag | null {
   }
 
   return null
+}
+
+function getResourceYield(resourceTag: ResourceTag, tags: Record<string, string>): OsmClaimFeature['resourceYield'] {
+  if (resourceTag === 'Forest') {
+    return {
+      wood: tags.natural === 'wood' || tags.landuse === 'forest' ? 3 : 1,
+      livestockForage: tags.landuse === 'farmland' || tags.landuse === 'grass' ? 2 : 1,
+    }
+  }
+
+  if (resourceTag === 'Quarry') {
+    return {
+      stone: tags.landuse === 'quarry' || tags.landuse === 'construction' ? 3 : 1,
+      iron: tags.landuse === 'industrial' || tags.building === 'industrial' ? 2 : 1,
+    }
+  }
+
+  if (resourceTag === 'Settlement') {
+    return {
+      labor: tags.amenity === 'school' || tags.amenity === 'university' ? 2 : 1,
+      population: tags.building === 'apartments' || tags.landuse === 'residential' ? 3 : 1,
+    }
+  }
+
+  return {}
 }
 
 function getFeatureName(tags: Record<string, string>, resourceTag: ResourceTag, id: number) {
@@ -99,6 +133,7 @@ function createSyntheticFeatures(coordinate: Coordinate): OsmClaimFeature[] {
       lon: coordinate.lon + offset.lon,
     },
     resourceTag: offset.resourceTag,
+    resourceYield: getResourceYield(offset.resourceTag, { generated: 'fallback' }),
     sourceTags: { generated: 'fallback' },
     claimedBy: index === 0 ? 'player' : null,
     influence: index === 0 ? 1 : 0.45,
@@ -120,6 +155,7 @@ function toClaimFeature(element: OverpassElement): OsmClaimFeature | null {
     name: getFeatureName(tags, resourceTag, element.id),
     coordinate: { lat, lon },
     resourceTag,
+    resourceYield: getResourceYield(resourceTag, tags),
     sourceTags: tags,
     claimedBy: resourceTag === 'Intersection' ? 'player' : null,
     influence: resourceTag === 'Intersection' ? 1 : 0.55,
@@ -133,10 +169,14 @@ function buildOverpassQuery(coordinate: Coordinate) {
     [out:json][timeout:12];
     (
       node(around:${radiusMeters},${coordinate.lat},${coordinate.lon})["highway"~"traffic_signals|crossing"];
+      node(around:${radiusMeters},${coordinate.lat},${coordinate.lon})["amenity"~"park|community_centre|shelter|school|college|university|marketplace|workshop"];
       node(around:${radiusMeters},${coordinate.lat},${coordinate.lon})["leisure"~"park|garden"];
       way(around:${radiusMeters},${coordinate.lat},${coordinate.lon})["leisure"~"park|garden"];
+      way(around:${radiusMeters},${coordinate.lat},${coordinate.lon})["amenity"~"park|community_centre|shelter|school|college|university|marketplace|workshop"];
       way(around:${radiusMeters},${coordinate.lat},${coordinate.lon})["landuse"~"forest|grass|farmland|orchard|allotments|industrial|quarry|construction|residential"];
       way(around:${radiusMeters},${coordinate.lat},${coordinate.lon})["building"~"residential|apartments|house|industrial|warehouse"];
+      way(around:${radiusMeters},${coordinate.lat},${coordinate.lon})["shop"~"trade|hardware|building_materials"];
+      way(around:${radiusMeters},${coordinate.lat},${coordinate.lon})["office"~"industrial|company"];
     );
     out center tags 45;
   `
