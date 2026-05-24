@@ -27,6 +27,37 @@ The canonical spatial model is:
 - `InfrastructureLandmark`: OSM node, way, or relation mapped to a game object with tags, resource role, labor role, tactical role, and interaction state.
 - `ClaimCell`: micro-grid cell derived from local intersection geometry, used for claim influence, contest resolution, patrol areas, construction placement, and fog-of-war sampling.
 
+## Political Topology
+
+The game must not collapse the world into a single monolithic enemy list. Broad factions are cultural or ideological umbrellas; active rulers are separate polity instances that can split into breakaway nations, city-states, client realms, or independent AI-controlled shards.
+
+Rules:
+
+- Each broad faction may spawn multiple breakaway nations or local polity fragments.
+- Faction identity and polity identity are not the same thing.
+- Different polity instances may share the same faction culture, unit roster, iconography, and diplomacy baseline while still acting as separate rulers.
+- Players choosing the same faction are not the same actor; they are separate political instances with distinct names, goals, diplomacy, and claim maps.
+- The same physical town can contain multiple claims from the same broad faction, controlled by different AI rulers.
+- Keep the visible political landscape readable. Do not spawn 11 or 12 generic enemies; instead, surface a smaller number of meaningful political actors with nested breakaway states.
+
+Example:
+
+- Great Neck may contain two Byzantine claims controlled by two different Byzantine AI polities.
+- Those claims should be diplomatically and mechanically distinct even though they share a culture tag.
+
+## Unit, Building, and Resource Granularity
+
+Every soldier, villager, worker, scout, banner, building, wall, gate, tower, defense, and production site must exist as an independent object with its own state.
+
+Rules:
+
+- Soldiers and villagers are not abstract dots; they are movable, damageable, ordered entities.
+- Buildings are not just territory badges; they are individual structures with ownership, garrison state, durability, production, and upgrade state.
+- Defenses such as walls, towers, gates, trenches, watch posts, and barricades are independent map objects.
+- Resources must exist on the map at the places they are harvested, mined, gathered, or processed.
+- Mines, quarries, forests, farms, fisheries, workshops, wells, and warehouses are physical game objects, not off-map counters.
+- Dots may be used only as temporary low-zoom clusters or debug placeholders. The primary presentation must be detailed, spatial, and object-rich.
+
 ## OpenStreetMap Integration
 
 The client map must use Leaflet as the interactive map shell. OSM data ingestion must read global `amenity`, `landuse`, `leisure`, `natural`, `building`, `highway`, `bridge`, `railway`, `waterway`, `shop`, `office`, `industrial`, `construction`, and related tags through a structured OSM data provider.
@@ -112,6 +143,31 @@ Claim contest resolution must evaluate:
 - Active patrol and army banner presence.
 
 Claim state must be deterministic on the server or authoritative simulation layer. The client may preview claims, but final ownership updates must come from the authoritative state engine.
+
+## Trade, Toll, and Access Infrastructure
+
+The economy must support localized tolls and access fees. Bridges, gates, checkpoints, ferries, controlled crossings, harbor entries, commercial roads, and defensive chokepoints may collect tolls or tribute.
+
+Rules:
+
+- Toll rights belong to the current claim holder unless explicitly granted, leased, or revoked.
+- Tolls may be denominated in gold, food, goods, labor, military passage, or diplomatic rights.
+- Tolls must influence movement decisions, diplomacy, and route selection.
+- A toll can be a political instrument, not just a revenue source.
+
+## Diplomacy and Statecraft
+
+Diplomacy must be deep, persistent, and polity-specific.
+
+Supported relationships and actions should include:
+
+- Peace, war, ceasefire, truce, alliance, non-aggression, trade pact, tribute, vassalage, protectorate, hostage exchange, safe passage, toll treaty, sanctions, and espionage.
+- Separate relation tracking for each polity instance, even when two instances share the same faction culture.
+- Diplomatic drift over time based on borders, toll abuse, raids, trade, gifts, warfare, and treaty violations.
+- Local diplomacy may differ from faction-wide diplomacy if the game model requires it.
+- Same-faction breakaway polities may cooperate, compete, or go to war.
+
+Diplomacy must be stateful and auditable. It is not a one-off chat window.
 
 ## Engine Temporal Pacing
 
@@ -312,6 +368,19 @@ The first screen must be the playable map interface, not a marketing page. The a
 - Simulation event log.
 
 The interface must remain readable and usable on desktop and mobile. Floating map controls must not overlap critical map attribution, mobile browser chrome, or each other. Resource icons must stay legible without creating visual clutter.
+
+## Visual Presentation Standard
+
+The game must be presented as detailed and tactile, not as dots on a map.
+
+Rules:
+
+- Use detailed 3D models where possible for units, buildings, defenses, and landmarks.
+- Primary asset format should be modular glTF or GLB models unless the implementation explicitly documents another format.
+- Use Level of Detail behavior to preserve performance at distance, but keep the close view rich and recognizable.
+- Low-zoom clustering may simplify presentation, but high-zoom gameplay must resolve into distinct soldiers, civilians, buildings, roads, fortifications, and resource sites.
+- Do not rely on dot-only markers as the main visual language.
+- Temporary placeholders are acceptable during development, but the target standard is a world that feels built, occupied, and geographically specific.
 
 ## Backend Requirements
 
