@@ -1,6 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 export const REAL_MS_PER_GAME_DAY = 60 * 60 * 1000
 export const LOOP_TICK_MS = 15 * 60 * 1000
@@ -20,9 +21,29 @@ export interface EngineClock {
   lastTickAt: string
   nextTickAt: string
   tickIndex: number
+  ticksApplied: number
   inGameDay: number
   inGameHour: number
   isRunning: boolean
+  lastCatchUpCount: number
+}
+
+export interface EngineEvent {
+  id: string
+  tickIndex: number
+  type: 'engine_started' | 'tick_applied' | 'catch_up' | 'engine_paused' | 'engine_resumed' | 'engine_reset'
+  message: string
+  createdAt: string
+}
+
+export interface TickSnapshot {
+  tickIndex: number
+  realWorldAt: string
+  inGameDay: number
+  inGameHour: number
+  weatherMovementMultiplier: number
+  activeClaimCount: number
+  activeBannerCount: number
 }
 
 export interface EnvironmentModifiers {
@@ -81,15 +102,30 @@ export interface BannerMovement {
 
 interface PhaseOneGameStore {
   clock: EngineClock
+  tickHistory: TickSnapshot[]
+  eventLog: EngineEvent[]
   playerCoordinate: Coordinate | null
   weather: WeatherSnapshot
   claimFeatures: OsmClaimFeature[]
   movingBanners: BannerMovement[]
   setPlayerCoordinate: (coordinate: Coordinate) => void
   processEngineTick: (now?: Date) => void
+  pauseEngine: () => void
+  resumeEngine: () => void
+  resetEngine: () => void
   setWeatherSnapshot: (weather: WeatherSnapshot) => void
   setClaimFeatures: (features: OsmClaimFeature[]) => void
   seedBannerMovement: () => void
+}
+
+function createEngineEvent(type: EngineEvent['type'], tickIndex: number, message: string): EngineEvent {
+  return {
+    id: `${type}-${tickIndex}-${Date.now()}`,
+    tickIndex,
+    type,
+    message,
+    createdAt: new Date().toISOString(),
+  }
 }
 
 function createInitialClock(now = new Date()): EngineClock {
@@ -99,9 +135,11 @@ function createInitialClock(now = new Date()): EngineClock {
     lastTickAt: startedAt,
     nextTickAt: new Date(now.getTime() + LOOP_TICK_MS).toISOString(),
     tickIndex: 0,
+    ticksApplied: 0,
     inGameDay: 1,
     inGameHour: 0,
     isRunning: true,
+    lastCatchUpCount: 0,
   }
 }
 
@@ -145,11 +183,39 @@ function advanceClock(clock: EngineClock, now: Date): EngineClock {
   return {
     ...clock,
     tickIndex,
+    ticksApplied: clock.ticksApplied + elapsedTicks,
     inGameDay,
     inGameHour,
     lastTickAt: lastTickAt.toISOString(),
     nextTickAt: new Date(lastTickAt.getTime() + LOOP_TICK_MS).toISOString(),
+    lastCatchUpCount: elapsedTicks,
   }
+}
+
+function createTickSnapshots(
+  priorClock: EngineClock,
+  nextClock: EngineClock,
+  weather: WeatherSnapshot,
+  claimFeatures: OsmClaimFeature[],
+  movingBanners: BannerMovement[]
+): TickSnapshot[] {
+  if (nextClock.tickIndex === priorClock.tickIndex) return []
+
+  const snapshots: TickSnapshot[] = []
+  for (let tick = priorClock.tickIndex + 1; tick <= nextClock.tickIndex; tick += 1) {
+    const totalGameHours = tick * GAME_HOURS_PER_TICK
+    snapshots.push({
+      tickIndex: tick,
+      realWorldAt: new Date(new Date(priorClock.lastTickAt).getTime() + (tick - priorClock.tickIndex) * LOOP_TICK_MS).toISOString(),
+      inGameDay: 1 + Math.floor(totalGameHours / 24),
+      inGameHour: totalGameHours % 24,
+      weatherMovementMultiplier: weather.movementMultiplier,
+      activeClaimCount: claimFeatures.filter(feature => feature.claimedBy !== null).length,
+      activeBannerCount: movingBanners.length,
+    })
+  }
+
+  return snapshots
 }
 
 function lerp(start: number, end: number, progress: number) {
@@ -192,64 +258,141 @@ function haversineMeters(a: Coordinate, b: Coordinate) {
   return 2 * radiusMeters * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h))
 }
 
-export const usePhaseOneGameStore = create<PhaseOneGameStore>((set, get) => ({
-  clock: createInitialClock(),
-  playerCoordinate: null,
-  weather: fallbackWeather,
-  claimFeatures: [],
-  movingBanners: [],
+export const usePhaseOneGameStore = create<PhaseOneGameStore>()(
+  persist(
+    (set, get) => ({
+      clock: createInitialClock(),
+      tickHistory: [],
+      eventLog: [createEngineEvent('engine_started', 0, 'Phase 1 persistent engine initialized.')],
+      playerCoordinate: null,
+      weather: fallbackWeather,
+      claimFeatures: [],
+      movingBanners: [],
 
-  setPlayerCoordinate: coordinate => {
-    set({ playerCoordinate: coordinate })
-    get().seedBannerMovement()
-  },
+      setPlayerCoordinate: coordinate => {
+        set({ playerCoordinate: coordinate })
+        get().seedBannerMovement()
+      },
 
-  processEngineTick: (now = new Date()) => {
-    set(state => ({
-      clock: advanceClock(state.clock, now),
-      movingBanners: progressBanners(state.movingBanners, state.weather, now),
-    }))
-  },
+      processEngineTick: (now = new Date()) => {
+        set(state => {
+          const nextClock = advanceClock(state.clock, now)
+          const movingBanners = progressBanners(state.movingBanners, state.weather, now)
+          const tickSnapshots = createTickSnapshots(
+            state.clock,
+            nextClock,
+            state.weather,
+            state.claimFeatures,
+            movingBanners
+          )
+          const tickEvents = tickSnapshots.map(snapshot =>
+            createEngineEvent(
+              snapshot.tickIndex - state.clock.tickIndex > 1 ? 'catch_up' : 'tick_applied',
+              snapshot.tickIndex,
+              `Processed game day ${snapshot.inGameDay}, hour ${snapshot.inGameHour}.`
+            )
+          )
 
-  setWeatherSnapshot: weather => {
-    set(state => ({
-      weather,
-      movingBanners: progressBanners(state.movingBanners, weather, new Date()),
-    }))
-  },
+          return {
+            clock: nextClock,
+            movingBanners,
+            tickHistory: [...state.tickHistory, ...tickSnapshots].slice(-96),
+            eventLog: [...state.eventLog, ...tickEvents].slice(-120),
+          }
+        })
+      },
 
-  setClaimFeatures: claimFeatures => set({ claimFeatures }),
+      pauseEngine: () => {
+        set(state => ({
+          clock: { ...state.clock, isRunning: false },
+          eventLog: [
+            ...state.eventLog,
+            createEngineEvent('engine_paused', state.clock.tickIndex, 'Engine loop paused.'),
+          ].slice(-120),
+        }))
+      },
 
-  seedBannerMovement: () => {
-    const coordinate = get().playerCoordinate
-    if (!coordinate || get().movingBanners.length > 0) return
+      resumeEngine: () => {
+        set(state => {
+          const now = new Date()
+          return {
+            clock: {
+              ...state.clock,
+              isRunning: true,
+              lastTickAt: now.toISOString(),
+              nextTickAt: new Date(now.getTime() + LOOP_TICK_MS).toISOString(),
+              lastCatchUpCount: 0,
+            },
+            eventLog: [
+              ...state.eventLog,
+              createEngineEvent('engine_resumed', state.clock.tickIndex, 'Engine loop resumed.'),
+            ].slice(-120),
+          }
+        })
+      },
 
-    const destination = {
-      lat: coordinate.lat + 0.012,
-      lon: coordinate.lon + 0.018,
+      resetEngine: () => {
+        const clock = createInitialClock()
+        set({
+          clock,
+          tickHistory: [],
+          eventLog: [createEngineEvent('engine_reset', 0, 'Engine loop reset to day 1, hour 0.')],
+          movingBanners: [],
+        })
+      },
+
+      setWeatherSnapshot: weather => {
+        set(state => ({
+          weather,
+          movingBanners: progressBanners(state.movingBanners, weather, new Date()),
+        }))
+      },
+
+      setClaimFeatures: claimFeatures => set({ claimFeatures }),
+
+      seedBannerMovement: () => {
+        const coordinate = get().playerCoordinate
+        if (!coordinate || get().movingBanners.length > 0) return
+
+        const destination = {
+          lat: coordinate.lat + 0.012,
+          lon: coordinate.lon + 0.018,
+        }
+        const distanceMeters = Math.max(500, haversineMeters(coordinate, destination))
+        const baseSpeedKph = 4.5
+        const startedAt = new Date()
+        const etaAt = new Date(startedAt.getTime() + distanceMeters / ((baseSpeedKph * 1000) / (60 * 60 * 1000)))
+
+        set({
+          movingBanners: [
+            {
+              id: 'banner-local-scouts',
+              name: 'Local scout banner',
+              origin: coordinate,
+              destination,
+              current: coordinate,
+              distanceMeters,
+              startedAt: startedAt.toISOString(),
+              etaAt: etaAt.toISOString(),
+              baseSpeedKph,
+              activeSpeedKph: baseSpeedKph,
+              progress: 0,
+            },
+          ],
+        })
+      },
+    }),
+    {
+      name: 'neighborhood-phase-one-engine',
+      partialize: state => ({
+        clock: state.clock,
+        tickHistory: state.tickHistory,
+        eventLog: state.eventLog,
+        playerCoordinate: state.playerCoordinate,
+        weather: state.weather,
+        claimFeatures: state.claimFeatures,
+        movingBanners: state.movingBanners,
+      }),
     }
-    const distanceMeters = Math.max(500, haversineMeters(coordinate, destination))
-    const baseSpeedKph = 4.5
-    const startedAt = new Date()
-    const etaAt = new Date(startedAt.getTime() + distanceMeters / ((baseSpeedKph * 1000) / (60 * 60 * 1000)))
-
-    set({
-      movingBanners: [
-        {
-          id: 'banner-local-scouts',
-          name: 'Local scout banner',
-          origin: coordinate,
-          destination,
-          current: coordinate,
-          distanceMeters,
-          startedAt: startedAt.toISOString(),
-          etaAt: etaAt.toISOString(),
-          baseSpeedKph,
-          activeSpeedKph: baseSpeedKph,
-          progress: 0,
-        },
-      ],
-    })
-  },
-}))
-
+  )
+)
