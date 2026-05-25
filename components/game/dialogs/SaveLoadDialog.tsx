@@ -75,7 +75,7 @@ export function SaveLoadDialog({
       territories: Object.fromEntries(game.territories),
       armies: Object.fromEntries(game.armies),
       commanders: Object.fromEntries(game.commanders),
-      activeBattles: Object.fromEntries(game.activeBattles),
+      activeBattles: Object.fromEntries(game.battles),
       slotName: saveName,
       playerFactionName: playerFaction?.name || 'Unknown',
       territoriesOwned: playerTerritories.length,
@@ -85,7 +85,7 @@ export function SaveLoadDialog({
     localStorage.setItem(slotKey, JSON.stringify(saveData))
     saveGame()
     setSlots(parseSaveSlots())
-    addNotification({ type: 'success', title: 'Game Saved', message: `"${saveName}" saved.`, duration: 3000 })
+    addNotification({ type: 'success', title: 'Game Saved', message: `"${saveName}" saved.`, duration: 3000, timestamp: Date.now() })
   }
 
   const handleLoad = (slotId: string) => {
@@ -96,7 +96,7 @@ export function SaveLoadDialog({
       loadGame(parsed)
       onClose()
     } catch {
-      addNotification({ type: 'danger', title: 'Load Failed', message: 'Save file is corrupted.', duration: 4000 })
+      addNotification({ type: 'danger', title: 'Load Failed', message: 'Save file is corrupted.', duration: 4000, timestamp: Date.now() })
     }
   }
 

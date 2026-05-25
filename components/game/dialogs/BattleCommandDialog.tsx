@@ -2,34 +2,33 @@
 
 import { useState } from 'react'
 import { useGameStore } from '@/lib/game/store'
-import { BattleFormation, BattleFocus, BattleOrder } from '@/lib/game/types'
+import type { BattleFormation, BattleFocus, BattleOrder } from '@/lib/game/types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
-import { Swords, Shield, Target, Flag, Users, ArrowRight } from 'lucide-react'
+import { Swords, Shield, Target, Flag, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const FORMATIONS: { value: BattleFormation; label: string; description: string }[] = [
-  { value: 'shield_wall', label: 'Shield Wall', description: '+30% defense, -20% attack' },
-  { value: 'skirmish', label: 'Skirmish', description: 'Balanced, +10% morale' },
-  { value: 'charge', label: 'Charge', description: '+40% attack, -30% defense' },
-  { value: 'defensive', label: 'Defensive', description: '+50% defense, -40% attack' },
+  { value: 'line', label: 'Line', description: 'Balanced formation' },
+  { value: 'wedge', label: 'Wedge', description: '+30% attack, -20% defense' },
+  { value: 'defensive', label: 'Defensive', description: '+40% defense, -30% attack' },
+  { value: 'flanking', label: 'Flanking', description: 'Risk for high reward' },
 ]
 
-const FOCUS_TARGETS: { value: BattleFocus; label: string; icon: React.ReactNode }[] = [
-  { value: 'infantry', label: 'Infantry', icon: <Users className="h-4 w-4" /> },
-  { value: 'archers', label: 'Archers', icon: <Target className="h-4 w-4" /> },
-  { value: 'cavalry', label: 'Cavalry', icon: <ArrowRight className="h-4 w-4" /> },
-  { value: 'commander', label: 'Commander', icon: <Flag className="h-4 w-4" /> },
+const FOCUS_TARGETS: { value: BattleFocus; label: string }[] = [
+  { value: 'aggressive', label: 'Aggressive' },
+  { value: 'balanced', label: 'Balanced' },
+  { value: 'defensive', label: 'Defensive' },
 ]
 
 const ORDERS: { value: BattleOrder; label: string; description: string }[] = [
-  { value: 'hold_ground', label: 'Hold Ground', description: 'Maintain position, steady losses' },
-  { value: 'flank', label: 'Flank', description: 'Risk for high reward' },
-  { value: 'feigned_retreat', label: 'Feigned Retreat', description: 'Lure enemy, then strike' },
-  { value: 'all_out_attack', label: 'All Out Attack', description: 'Maximum damage, high casualties' },
+  { value: 'hold', label: 'Hold', description: 'Maintain position' },
+  { value: 'advance', label: 'Advance', description: 'Push forward' },
+  { value: 'retreat', label: 'Retreat', description: 'Fall back safely' },
+  { value: 'flank', label: 'Flank', description: 'Attack from side' },
 ]
 
 export function BattleCommandDialog() {
@@ -38,31 +37,35 @@ export function BattleCommandDialog() {
   const closeBattleCommand = useGameStore(state => state.closeBattleCommand)
   const submitBattleOrders = useGameStore(state => state.submitBattleOrders)
   
-  const [formation, setFormation] = useState<BattleFormation>('skirmish')
-  const [focus, setFocus] = useState<BattleFocus>('infantry')
-  const [order, setOrder] = useState<BattleOrder>('hold_ground')
+  const [formation, setFormation] = useState<BattleFormation>('line')
+  const [focus, setFocus] = useState<BattleFocus>('balanced')
+  const [order, setOrder] = useState<BattleOrder>('hold')
   
   if (!game || !ui.showBattleCommand) return null
   
-  const battle = game.activeBattles.get(ui.showBattleCommand)
+  const battle = game.battles.get(ui.showBattleCommand)
   if (!battle) return null
   
-  const attackerArmy = game.armies.get(battle.attackerArmyId)
-  const defenderArmy = game.armies.get(battle.defenderArmyId)
+  const playerArmy = game.armies.get(battle.playerArmyId)
+  const enemyArmy = game.armies.get(battle.enemyArmyId)
   const territory = game.territories.get(battle.territoryId)
   
-  if (!attackerArmy || !defenderArmy || !territory) return null
+  if (!playerArmy || !enemyArmy || !territory) return null
   
-  const attackerFaction = game.factions.get(attackerArmy.ownerId)
-  const defenderFaction = game.factions.get(defenderArmy.ownerId)
-  
-  const playerArmy = battle.playerIsAttacker ? attackerArmy : defenderArmy
-  const enemyArmy = battle.playerIsAttacker ? defenderArmy : attackerArmy
-  const playerFaction = battle.playerIsAttacker ? attackerFaction : defenderFaction
-  const enemyFaction = battle.playerIsAttacker ? defenderFaction : attackerFaction
+  const playerFaction = game.factions.get(playerArmy.factionId)
+  const enemyFaction = game.factions.get(enemyArmy.factionId)
   
   const playerUnits = playerArmy.units.reduce((sum, u) => sum + u.count, 0)
   const enemyUnits = enemyArmy.units.reduce((sum, u) => sum + u.count, 0)
+  
+  // Calculate aggregate morale from units
+  const getArmyMorale = (units: typeof playerArmy.units): number => {
+    if (units.length === 0) return 50
+    return Math.round(units.reduce((sum, u) => sum + u.morale, 0) / units.length)
+  }
+  
+  const playerMorale = getArmyMorale(playerArmy.units)
+  const enemyMorale = getArmyMorale(enemyArmy.units)
   
   const handleSubmit = () => {
     submitBattleOrders(battle.id, formation, focus, order)
@@ -70,12 +73,10 @@ export function BattleCommandDialog() {
   }
   
   const handleRetreat = () => {
-    // Retreat logic - auto-resolve with retreat
     closeBattleCommand()
   }
   
   const handleAutoResolve = () => {
-    // Let it auto-resolve
     closeBattleCommand()
   }
   
@@ -105,7 +106,7 @@ export function BattleCommandDialog() {
               <div className="text-xs text-slate-400">troops</div>
               <div className="mt-2">
                 <div className="text-xs text-slate-400 mb-1">Morale</div>
-                <Progress value={playerArmy.morale} className="h-2" />
+                <Progress value={playerMorale} className="h-2" />
               </div>
             </CardContent>
           </Card>
@@ -129,7 +130,7 @@ export function BattleCommandDialog() {
               <div className="text-xs text-slate-400">troops</div>
               <div className="mt-2">
                 <div className="text-xs text-slate-400 mb-1">Morale</div>
-                <Progress value={enemyArmy.morale} className="h-2" />
+                <Progress value={enemyMorale} className="h-2" />
               </div>
             </CardContent>
           </Card>
@@ -166,9 +167,9 @@ export function BattleCommandDialog() {
           {/* Focus target */}
           <div>
             <div className="text-sm font-semibold mb-2 flex items-center gap-2">
-              <Target className="h-4 w-4" /> Focus Target
+              <Target className="h-4 w-4" /> Focus
             </div>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {FOCUS_TARGETS.map(t => (
                 <Button
                   key={t.value}
@@ -180,7 +181,7 @@ export function BattleCommandDialog() {
                     focus === t.value && "border-amber-500 bg-amber-500/10"
                   )}
                 >
-                  {t.icon}
+                  <Users className="h-4 w-4" />
                   <span className="text-xs">{t.label}</span>
                 </Button>
               ))}
