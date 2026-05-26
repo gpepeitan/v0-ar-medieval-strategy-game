@@ -10,12 +10,13 @@ import { cn } from '@/lib/utils'
 
 interface BattleAlertProps {
   battle: Battle
+  playerFactionId: string
   onCommand: (battleId: string) => void
 }
 
-function BattleAlertItem({ battle, onCommand }: BattleAlertProps) {
+function BattleAlertItem({ battle, playerFactionId, onCommand }: BattleAlertProps) {
   const game = useGameStore(state => state.game)
-  const [timeLeft, setTimeLeft] = useState(battle.timeRemaining)
+  const [timeLeft, setTimeLeft] = useState(Math.ceil(battle.timerRemainingMs / 1000))
   
   // Countdown timer
   useEffect(() => {
@@ -30,16 +31,18 @@ function BattleAlertItem({ battle, onCommand }: BattleAlertProps) {
   
   if (!game) return null
   
-  const attackerArmy = game.armies.get(battle.attackerArmyId)
-  const defenderArmy = game.armies.get(battle.defenderArmyId)
+  const attackerArmy = game.armies.get(battle.attackerId)
+  const defenderArmy = game.armies.get(battle.defenderId)
   const territory = game.territories.get(battle.territoryId)
   
   if (!attackerArmy || !defenderArmy || !territory) return null
   
-  const attackerFaction = game.factions.get(attackerArmy.ownerId)
-  const defenderFaction = game.factions.get(defenderArmy.ownerId)
+  const attackerFaction = game.factions.get(attackerArmy.factionId)
+  const defenderFaction = game.factions.get(defenderArmy.factionId)
   
-  const isPlayerBattle = battle.playerIsAttacker || battle.playerIsDefender
+  const playerIsAttacker = attackerArmy.factionId === playerFactionId
+  const playerIsDefender = defenderArmy.factionId === playerFactionId
+  const isPlayerBattle = playerIsAttacker || playerIsDefender
   const isUrgent = timeLeft < 15
   
   return (
@@ -77,7 +80,7 @@ function BattleAlertItem({ battle, onCommand }: BattleAlertProps) {
             <div className="flex items-center gap-1 text-xs">
               <Clock className={cn("h-3 w-3", isUrgent ? "text-red-400" : "text-amber-400")} />
               <span className={isUrgent ? "text-red-400" : "text-amber-400"}>
-                {Math.floor(timeLeft)}s to auto-resolve
+                {timeLeft}s to auto-resolve
               </span>
             </div>
             <Button
@@ -103,12 +106,24 @@ function BattleAlertItem({ battle, onCommand }: BattleAlertProps) {
 
 export function BattleAlerts() {
   const game = useGameStore(state => state.game)
-  const openBattleCommand = useGameStore(state => state.openBattleCommand)
+  const setCommandingBattleId = useGameStore(state => state.setCommandingBattleId)
   
   if (!game) return null
   
-  const battles = Array.from(game.activeBattles.values())
-    .filter(b => (b.playerIsAttacker || b.playerIsDefender) && b.phase === 'pending')
+  const playerFaction = Array.from(game.factions.values()).find(f => f.isPlayer)
+  if (!playerFaction) return null
+  
+  const playerArmyIds = new Set(
+    Array.from(game.armies.values())
+      .filter(a => a.factionId === playerFaction.id)
+      .map(a => a.id)
+  )
+  
+  const battles = Array.from(game.battles.values())
+    .filter(b => {
+      const isPlayerBattle = playerArmyIds.has(b.attackerId) || playerArmyIds.has(b.defenderId)
+      return isPlayerBattle && b.phase === 'pending'
+    })
   
   if (battles.length === 0) return null
   
@@ -118,7 +133,8 @@ export function BattleAlerts() {
         <BattleAlertItem
           key={battle.id}
           battle={battle}
-          onCommand={openBattleCommand}
+          playerFactionId={playerFaction.id}
+          onCommand={setCommandingBattleId}
         />
       ))}
     </div>

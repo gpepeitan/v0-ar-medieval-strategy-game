@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import { useGameStore } from '@/lib/game/store'
-import { ChevronUp, ChevronDown, Scroll, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { ChevronUp, ChevronDown, Scroll } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function EventLog() {
@@ -12,12 +11,10 @@ export function EventLog() {
   
   if (!game) return null
   
-  const recentEvents = game.eventLog
-    .filter(e => e.factionIds.some(fid => game.factions.get(fid)?.isPlayer))
+  // Get recent events from the game events array
+  const recentEvents = game.events
     .slice(-10)
     .reverse()
-  
-  const unreadCount = recentEvents.filter(e => !e.isRead).length
   
   if (recentEvents.length === 0) return null
   
@@ -35,11 +32,9 @@ export function EventLog() {
         <div className="flex items-center gap-2">
           <Scroll className="h-4 w-4 text-amber-400" />
           <span className="text-sm font-medium text-slate-200">Event Log</span>
-          {unreadCount > 0 && (
-            <span className="px-1.5 py-0.5 text-xs font-semibold bg-amber-600 text-white rounded-full">
-              {unreadCount}
-            </span>
-          )}
+          <span className="px-1.5 py-0.5 text-xs font-semibold bg-amber-600 text-white rounded-full">
+            {recentEvents.length}
+          </span>
         </div>
         {isExpanded ? (
           <ChevronUp className="h-4 w-4 text-slate-400" />
@@ -53,10 +48,7 @@ export function EventLog() {
           {recentEvents.map(event => (
             <div 
               key={event.id}
-              className={cn(
-                'px-3 py-2 border-b border-slate-800 last:border-0',
-                !event.isRead && 'bg-slate-800/50'
-              )}
+              className="px-3 py-2 border-b border-slate-800 last:border-0"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">

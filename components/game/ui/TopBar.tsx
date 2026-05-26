@@ -34,7 +34,7 @@ export function TopBar() {
     { id: 'army' as const, icon: Swords, label: 'Armies' },
     { id: 'diplomacy' as const, icon: Handshake, label: 'Diplomacy' },
     { id: 'economy' as const, icon: Coins, label: 'Economy' },
-    { id: 'commanders' as const, icon: Users, label: 'Commanders' },
+    { id: 'commander' as const, icon: Users, label: 'Commanders' },
   ]
   
   const seasonColors: Record<string, string> = {
