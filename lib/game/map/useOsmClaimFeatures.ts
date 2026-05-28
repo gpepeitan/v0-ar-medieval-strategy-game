@@ -89,6 +89,7 @@ function toClaimFeature(element: OverpassElement): OsmClaimFeature | null {
     claimedBy: resourceTag === 'Intersection' ? 'player' : null,
     influence: resourceTag === 'Intersection' ? 1 : 0.55,
     confidence: element.tags ? 0.9 : 0.5,
+    building: null,
   }
 }
 
@@ -111,6 +112,7 @@ function createSyntheticFeatures(coordinate: Coordinate): OsmClaimFeature[] {
     claimedBy: i === 0 ? 'player' : null,
     influence: i === 0 ? 1 : 0.45,
     confidence: 0.4,
+    building: null,
   }))
 }
 
