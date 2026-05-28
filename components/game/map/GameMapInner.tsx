@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect } from 'react'
+import { Fragment, useCallback, useEffect } from 'react'
 import {
   CircleMarker, MapContainer, Polygon, Polyline,
   TileLayer, Tooltip, useMap, useMapEvents,
@@ -13,6 +13,7 @@ import {
 } from '@/lib/game/state/gameStore'
 import { useOsmClaimFeatures } from '@/lib/game/map/useOsmClaimFeatures'
 import { useOpenMeteoWeather } from '@/lib/game/weather/useOpenMeteoWeather'
+import { ClaimInfoPanel } from '@/components/game/panels/ClaimInfoPanel'
 
 // Fix Leaflet default marker icons
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl
@@ -109,39 +110,62 @@ function OsmClaimCells() {
           const cell   = makeCell(f.coordinate, radius, sides, jitter)
 
           return (
-            <Polygon
-              key={f.id}
-              positions={cell}
-              pathOptions={{
-                color:       isSel ? '#ffffff' : claimColor,
-                weight:      isSel ? 2 : 1,
-                fillColor:   claimColor,
-                fillOpacity: f.claimedBy === 'player' ? 0.52 : 0.35,
-              }}
-              eventHandlers={{
-                click: () => selectFeature(isSel ? null : f.id),
-              }}
-            >
-              <Tooltip direction="top" opacity={0.95}>
-                <div className="min-w-[148px] p-1.5 text-xs">
-                  <div className="font-semibold text-slate-100">{f.name}</div>
-                  <div style={{ color: RESOURCE_COLORS[f.resourceTag] }}>
-                    {f.resourceTag}
-                    {f.resourceTag === 'Forest' && !f.isHarvestable && ' · no timber'}
+            <Fragment key={f.id}>
+              <Polygon
+                positions={cell}
+                pathOptions={{
+                  color:       isSel ? '#ffffff' : claimColor,
+                  weight:      isSel ? 2 : 1,
+                  fillColor:   claimColor,
+                  fillOpacity: f.claimedBy === 'player' ? 0.52 : 0.35,
+                }}
+                eventHandlers={{
+                  click: () => selectFeature(isSel ? null : f.id),
+                }}
+              >
+                <Tooltip direction="top" opacity={0.95}>
+                  <div className="min-w-[148px] p-1.5 text-xs">
+                    <div className="font-semibold text-slate-100">{f.name}</div>
+                    <div style={{ color: RESOURCE_COLORS[f.resourceTag] }}>
+                      {f.resourceTag}
+                      {f.resourceTag === 'Forest' && !f.isHarvestable && ' · no timber'}
+                    </div>
+                    {f.claimedBy && (
+                      <div className="mt-0.5" style={{ color: claimColor }}>
+                        {polityLabel(f.claimedBy, aiPolities)}
+                      </div>
+                    )}
+                    {Object.keys(f.resourceYield).length > 0 && (
+                      <div className="mt-0.5 text-slate-400">
+                        {Object.entries(f.resourceYield).map(([k, v]) => `${k} ${v}`).join(' · ')}
+                      </div>
+                    )}
+                    {f.building?.completedAt && (
+                      <div className="mt-0.5 text-emerald-400">
+                        {f.building.type.replace(/_/g, ' ')} (built)
+                      </div>
+                    )}
+                    {f.building && !f.building.completedAt && (
+                      <div className="mt-0.5 text-amber-400">Building…</div>
+                    )}
                   </div>
-                  {f.claimedBy && (
-                    <div className="mt-0.5" style={{ color: claimColor }}>
-                      {polityLabel(f.claimedBy, aiPolities)}
-                    </div>
-                  )}
-                  {Object.keys(f.resourceYield).length > 0 && (
-                    <div className="mt-0.5 text-slate-400">
-                      {Object.entries(f.resourceYield).map(([k, v]) => `${k} ${v}`).join(' · ')}
-                    </div>
-                  )}
-                </div>
-              </Tooltip>
-            </Polygon>
+                </Tooltip>
+              </Polygon>
+              {f.building?.completedAt && (
+                <CircleMarker
+                  center={[f.coordinate.lat, f.coordinate.lon]}
+                  radius={3}
+                  pathOptions={{ color: '#fff', fillColor: '#fff', fillOpacity: 0.9, weight: 0 }}
+                />
+              )}
+              {f.building && !f.building.completedAt && (
+                <CircleMarker
+                  center={[f.coordinate.lat, f.coordinate.lon]}
+                  radius={3}
+                  pathOptions={{ color: '#fbbf24', fillColor: '#fbbf24', fillOpacity: 0.8, weight: 0 }}
+                />
+              )}
+            </Fragment>
           )
         }
 
@@ -376,6 +400,7 @@ export function GameMapInner() {
 
       <TelemetryHud />
       <MapLegend />
+      <ClaimInfoPanel />
 
       {/* Geolocation pending hint */}
       {!playerCoordinate && (
