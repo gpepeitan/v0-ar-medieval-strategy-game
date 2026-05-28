@@ -17,7 +17,7 @@
  * Status: Stub — structure is final, implementations follow Phase 3 → 4 progression.
  */
 
-import type { Coordinate, OsmClaimFeature, BannerMovement, WeatherSnapshot } from './state/gameStore'
+import type { Coordinate, OsmClaimFeature, BannerMovement, WeatherSnapshot } from '../state/gameStore'
 
 // ─── Spatial types ────────────────────────────────────────────────────────────
 
