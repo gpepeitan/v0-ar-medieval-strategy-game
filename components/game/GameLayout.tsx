@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { usePhaseOneGameStore } from '@/lib/game/state/gameStore'
 import { GameMap } from './map/GameMap'
 import { NotificationStack } from './ui/NotificationStack'
@@ -17,6 +18,30 @@ function WorldHud() {
 
   const myClaims   = claimFeatures.filter(f => f.claimedBy === 'player').length
   const totalCells = claimFeatures.length
+
+  const BLDG_BONUSES: Record<string, Record<string, number>> = {
+    lumber_camp: { wood: 0.6 }, nature_reserve: { livestockForage: 0.4 },
+    stone_works: { stone: 0.6, iron: 0.6 }, guild_hall: { labor: 0.6, population: 0.5 },
+    market_post: {},
+  }
+  const YIELD_SHORT: Record<string, string> = {
+    wood: 'Tmb', livestockForage: 'Fge', stone: 'Stn',
+    iron: 'Iron', labor: 'Lab', population: 'Pop', gold: 'Gold',
+  }
+  const economy = useMemo(() => {
+    const totals: Record<string, number> = {}
+    for (const f of claimFeatures.filter(cf => cf.claimedBy === 'player')) {
+      for (const [key, base] of Object.entries(f.resourceYield)) {
+        if (!base || base <= 0) continue
+        const wx = key === 'wood' || key === 'livestockForage' ? weather.agricultureMultiplier
+                 : key !== 'gold' ? weather.laborMultiplier : 1
+        const bType = f.building?.completedAt ? f.building.type : undefined
+        const bx = 1 + (bType ? (BLDG_BONUSES[bType]?.[key] ?? 0) : 0)
+        totals[key] = Math.round(((totals[key] ?? 0) + base * wx * bx) * 10) / 10
+      }
+    }
+    return totals
+  }, [claimFeatures, weather])
 
   return (
     <div className="flex h-10 flex-shrink-0 items-center justify-between border-b border-slate-800 bg-slate-950 px-4 text-xs text-slate-300">
@@ -40,6 +65,15 @@ function WorldHud() {
         {weather.movementMultiplier < 0.9 && (
           <span className="text-orange-400">Mvt {Math.round(weather.movementMultiplier * 100)}%</span>
         )}
+        {Object.entries(economy)
+          .filter(([, v]) => v > 0)
+          .slice(0, 5)
+          .map(([k, v]) => (
+            <span key={k} className="text-amber-300/70 tabular-nums">
+              {YIELD_SHORT[k] ?? k} {v.toFixed(1)}
+            </span>
+          ))
+        }
       </div>
 
       {/* Right: controls */}
