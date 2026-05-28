@@ -10,6 +10,13 @@ export const GAME_HOURS_PER_TICK = 6
 export type ResourceTag = 'Forest' | 'Quarry' | 'Settlement' | 'Intersection'
 export type SeasonPhase = 'winter' | 'spring' | 'summer' | 'autumn' | 'wet' | 'dry'
 export type DaylightPhase = 'day' | 'night' | 'dawn' | 'dusk'
+export type BuildingType = 'lumber_camp' | 'nature_reserve' | 'stone_works' | 'guild_hall' | 'market_post'
+
+export interface Building {
+  type: BuildingType
+  startedAt: string
+  completedAt: string | null
+}
 
 export interface Coordinate { lat: number; lon: number }
 
@@ -60,9 +67,10 @@ export interface OsmClaimFeature {
   id: string; osmType: 'node'|'way'|'relation'|'synthetic'; osmId: number | null
   name: string; coordinate: Coordinate; resourceTag: ResourceTag
   isHarvestable: boolean
-  resourceYield: Partial<Record<'wood'|'livestockForage'|'stone'|'iron'|'labor'|'population', number>>
+  resourceYield: Partial<Record<'wood'|'livestockForage'|'stone'|'iron'|'labor'|'population'|'gold', number>>
   sourceTags: Record<string, string>
   claimedBy: string | null; influence: number; confidence: number
+  building: Building | null
 }
 
 export interface BannerMovement {
@@ -102,6 +110,7 @@ interface PhaseOneGameStore {
   selectBanner: (id: string | null) => void
   claimFeature: (featureId: string) => void
   moveBannerTo: (bannerId: string, destination: Coordinate) => void
+  buildOnFeature: (featureId: string, buildingType: BuildingType) => void
 }
 
 function createEngineEvent(type: EngineEvent['type'], tickIndex: number, message: string): EngineEvent {
@@ -190,6 +199,18 @@ function progressBanners(banners: BannerMovement[], weather: WeatherSnapshot, no
   })
 }
 
+/** Complete any buildings whose construction started at least one tick ago */
+function completedBuildings(features: OsmClaimFeature[], now: Date): OsmClaimFeature[] {
+  const nowMs = now.getTime()
+  return features.map(f => {
+    if (!f.building || f.building.completedAt !== null) return f
+    if (nowMs - new Date(f.building.startedAt).getTime() >= LOOP_TICK_MS) {
+      return { ...f, building: { ...f.building, completedAt: now.toISOString() } }
+    }
+    return f
+  })
+}
+
 /** On each tick, each AI polity claims one more unclaimed non-Intersection feature near it */
 function tickAiClaims(features: OsmClaimFeature[]): OsmClaimFeature[] {
   const updated = [...features]
@@ -237,8 +258,9 @@ export const usePhaseOneGameStore = create<PhaseOneGameStore>()(
           const nextClock = advanceClock(state.clock, now)
           const movingBanners = progressBanners(state.movingBanners, state.weather, now)
           const tickSnapshots = createTickSnapshots(state.clock, nextClock, state.weather, state.claimFeatures, movingBanners)
-          // Advance AI claims on ticks
-          const claimFeatures = tickSnapshots.length > 0 ? tickAiClaims(state.claimFeatures) : state.claimFeatures
+          // Advance AI claims and complete buildings on ticks
+          const afterAi = tickSnapshots.length > 0 ? tickAiClaims(state.claimFeatures) : state.claimFeatures
+          const claimFeatures = completedBuildings(afterAi, now)
           const tickEvents = tickSnapshots.map(s =>
             createEngineEvent(
               s.tickIndex - state.clock.tickIndex > 1 ? 'catch_up' : 'tick_applied',
@@ -295,6 +317,14 @@ export const usePhaseOneGameStore = create<PhaseOneGameStore>()(
           f.id === featureId ? { ...f, claimedBy: 'player', influence: 1 } : f
         ),
         selectedFeatureId: featureId,
+      })),
+
+      buildOnFeature: (featureId, buildingType) => set(state => ({
+        claimFeatures: state.claimFeatures.map(f =>
+          f.id !== featureId || f.claimedBy !== 'player' || f.building
+            ? f
+            : { ...f, building: { type: buildingType, startedAt: new Date().toISOString(), completedAt: null } }
+        ),
       })),
 
       moveBannerTo: (bannerId, destination) => set(state => {
