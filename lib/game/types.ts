@@ -523,7 +523,8 @@ export interface UIState {
   activePanel: 'territory' | 'army' | 'diplomacy' | 'economy' | 'commander' | null
   showNewGameDialog: boolean
   showNegotiationChat: boolean
-  showBattleCommand: boolean
+  showBattleCommand: boolean | null
+  commandingBattleId: string | null
   showSaveLoad: boolean
   showEventLog: boolean
   mapCenter: [number, number]

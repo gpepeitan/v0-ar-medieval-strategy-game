@@ -69,9 +69,9 @@ export function TerritoryPanel() {
   const armiesInTerritory = Array.from(game.armies.values()).filter(a => 
     a.currentTerritoryId === territory.id
   )
-  const playerArmies = armiesInTerritory.filter(a => a.factionId === playerFactionId)
+  const playerArmies = armiesInTerritory.filter(a => a.ownerId === playerFactionId)
   const enemyArmies = armiesInTerritory.filter(a => 
-    a.factionId !== playerFactionId && a.factionId !== territory.ownerId
+    a.ownerId !== playerFactionId && a.ownerId !== territory.ownerId
   )
 
   const canAttack = !isPlayerOwned && 
@@ -184,7 +184,7 @@ export function TerritoryPanel() {
                 Phase: {territory.siegeState.phase} | Day {territory.siegeState.daysElapsed}
               </p>
               <p className="text-xs text-muted-foreground">
-                Supplies: {territory.siegeState.defenderSupplies} remaining
+                Strength: Attacker {territory.siegeState.attackerStrength} vs Defender {territory.siegeState.defenderStrength}
               </p>
             </div>
           </>
@@ -199,7 +199,7 @@ export function TerritoryPanel() {
               </h3>
               <div className="space-y-2">
                 {armiesInTerritory.map(army => {
-                  const armyFaction = game.factions.get(army.factionId)
+                  const armyFaction = game.factions.get(army.ownerId)
                   const totalTroops = army.units.reduce((sum, u) => sum + u.count, 0)
                   return (
                     <div 

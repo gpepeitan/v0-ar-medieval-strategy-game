@@ -17,7 +17,7 @@ import {
   Star,
   Waypoints
 } from "lucide-react"
-import type { Army, Commander, UnitStack } from "@/lib/game/types"
+import type { Army, Commander, ArmyUnit } from "@/lib/game/types"
 
 export function ArmyPanel() {
   const game = useGameStore(state => state.game)
@@ -29,7 +29,7 @@ export function ArmyPanel() {
   if (!playerFaction) return null
 
   const playerArmies = Array.from(game.armies.values()).filter(a => a.ownerId === playerFaction.id)
-  const playerCommanders = Array.from(game.commanders.values()).filter(c => c.ownerId === playerFaction.id)
+  const playerCommanders = Array.from(game.commanders.values()).filter(c => c.factionId === playerFaction.id)
   const selectedArmyId = game.selectedArmyId
 
   return (
@@ -95,11 +95,11 @@ export function ArmyPanel() {
   )
 }
 
-function getUnitCount(units: UnitStack[], type: string): number {
+function getUnitCount(units: ArmyUnit[], type: string): number {
   return units.filter(u => u.type === type).reduce((sum, u) => sum + u.count, 0)
 }
 
-function getTotalTroops(units: UnitStack[]): number {
+function getTotalTroops(units: ArmyUnit[]): number {
   return units.reduce((sum, u) => sum + u.count, 0)
 }
 
@@ -118,8 +118,8 @@ function ArmyCard({
   const cavalry = getUnitCount(army.units, 'heavy_cavalry') + getUnitCount(army.units, 'light_cavalry')
   const archers = getUnitCount(army.units, 'archers') + getUnitCount(army.units, 'crossbowmen')
   const siege = getUnitCount(army.units, 'trebuchet') + getUnitCount(army.units, 'battering_ram') + getUnitCount(army.units, 'siege_tower') + getUnitCount(army.units, 'catapult')
-  const statusLabel = army.inBattle ? 'in battle' : army.isSieging ? 'besieging' : army.isRaiding ? 'raiding' : army.targetTerritoryId ? 'marching' : 'ready'
-  const statusVariant: 'default' | 'secondary' | 'destructive' = army.inBattle ? 'destructive' : army.targetTerritoryId ? 'secondary' : 'default'
+  const statusLabel = army.isInBattle ? 'in battle' : army.battleId ? 'engaged' : army.targetTerritoryId ? 'marching' : 'ready'
+  const statusVariant: 'default' | 'secondary' | 'destructive' = army.isInBattle ? 'destructive' : army.targetTerritoryId ? 'secondary' : 'default'
 
   return (
     <div
@@ -156,10 +156,10 @@ function ArmyCard({
 
       <div className="space-y-1">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">Morale</span>
-          <span className="text-foreground">{army.morale}%</span>
+          <span className="text-muted-foreground">Units</span>
+          <span className="text-foreground">{army.units.reduce((s, u) => s + u.count, 0)}</span>
         </div>
-        <Progress value={army.morale} className="h-1" />
+        <Progress value={Math.min(100, army.supplies)} className="h-1" />
       </div>
 
       <p className="text-xs text-muted-foreground mt-2">
@@ -183,9 +183,9 @@ function ArmyCard({
 }
 
 function CommanderCard({ commander }: { commander: Commander }) {
-  const level = Math.floor(commander.experience / 100) + 1
+  const level = Math.floor(commander.xp / 100) + 1
   const xpToNextLevel = level * 100
-  const xpProgress = Math.min(100, (commander.experience / xpToNextLevel) * 100)
+  const xpProgress = Math.min(100, (commander.xp / xpToNextLevel) * 100)
 
   return (
     <div className="p-3 rounded-lg border border-border">
@@ -204,13 +204,13 @@ function CommanderCard({ commander }: { commander: Commander }) {
       <div className="space-y-1">
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">Experience</span>
-          <span className="text-foreground">{commander.experience}/{xpToNextLevel}</span>
+          <span className="text-foreground">{commander.xp}/{xpToNextLevel}</span>
         </div>
         <Progress value={xpProgress} className="h-1" />
       </div>
 
       <p className="text-xs text-muted-foreground mt-2">
-        Age: {commander.age} | {commander.assignedArmyId ? 'Assigned' : 'Available'}
+        Age: {commander.age} | {commander.armyId ? 'Assigned' : 'Available'}
       </p>
     </div>
   )

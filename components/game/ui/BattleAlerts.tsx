@@ -37,11 +37,11 @@ function BattleAlertItem({ battle, playerFactionId, onCommand }: BattleAlertProp
   
   if (!attackerArmy || !defenderArmy || !territory) return null
   
-  const attackerFaction = game.factions.get(attackerArmy.factionId)
-  const defenderFaction = game.factions.get(defenderArmy.factionId)
+  const attackerFaction = game.factions.get(attackerArmy.ownerId)
+  const defenderFaction = game.factions.get(defenderArmy.ownerId)
   
-  const playerIsAttacker = attackerArmy.factionId === playerFactionId
-  const playerIsDefender = defenderArmy.factionId === playerFactionId
+  const playerIsAttacker = attackerArmy.ownerId === playerFactionId
+  const playerIsDefender = defenderArmy.ownerId === playerFactionId
   const isPlayerBattle = playerIsAttacker || playerIsDefender
   const isUrgent = timeLeft < 15
   
@@ -115,7 +115,7 @@ export function BattleAlerts() {
   
   const playerArmyIds = new Set(
     Array.from(game.armies.values())
-      .filter(a => a.factionId === playerFaction.id)
+      .filter(a => a.ownerId === playerFaction.id)
       .map(a => a.id)
   )
   

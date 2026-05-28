@@ -43,17 +43,24 @@ export function BattleCommandDialog() {
   
   if (!game || !ui.showBattleCommand) return null
   
-  const battle = game.battles.get(ui.showBattleCommand)
+  const battle = game.battles.get(ui.commandingBattleId ?? '')
   if (!battle) return null
   
-  const playerArmy = game.armies.get(battle.playerArmyId)
-  const enemyArmy = game.armies.get(battle.enemyArmyId)
-  const territory = game.territories.get(battle.territoryId)
+  const playerFaction = Array.from(game.factions.values()).find(f => f.isPlayer)
+  const playerFactionId = playerFaction?.id
+  const playerIsAttacker = game.armies.get(battle.attackerId)?.ownerId === playerFactionId
+  
+  const playerArmyId = playerIsAttacker ? battle.attackerId : battle.defenderId
+  const enemyArmyId  = playerIsAttacker ? battle.defenderId  : battle.attackerId
+  
+  const playerArmy = game.armies.get(playerArmyId)
+  const enemyArmy  = game.armies.get(enemyArmyId)
+  const territory  = game.territories.get(battle.territoryId)
   
   if (!playerArmy || !enemyArmy || !territory) return null
   
-  const playerFaction = game.factions.get(playerArmy.factionId)
-  const enemyFaction = game.factions.get(enemyArmy.factionId)
+  const playerFactionData = game.factions.get(playerArmy.ownerId)
+  const enemyFaction      = game.factions.get(enemyArmy.ownerId)
   
   const playerUnits = playerArmy.units.reduce((sum, u) => sum + u.count, 0)
   const enemyUnits = enemyArmy.units.reduce((sum, u) => sum + u.count, 0)
@@ -98,7 +105,7 @@ export function BattleCommandDialog() {
               <div className="flex items-center gap-2 mb-2">
                 <div 
                   className="w-3 h-3 rounded-full" 
-                  style={{ backgroundColor: playerFaction?.color }}
+                  style={{ backgroundColor: playerFactionData?.color }}
                 />
                 <span className="text-sm font-semibold text-amber-400">Your Army</span>
               </div>

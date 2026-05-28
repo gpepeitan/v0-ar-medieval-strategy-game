@@ -119,6 +119,7 @@ const initialUIState: UIState = {
   showDiplomacyDialog: false,
   showNegotiationChat: false,
   showBattleCommand: null,
+  commandingBattleId: null,
   selectedFactionForDiplomacy: null,
   mapCenter: [50, 10],
   mapZoom: 5,
@@ -512,14 +513,14 @@ export const useGameStore = create<GameStore>()((set, get) => {
     
     openBattleCommand: (battleId) => {
       set(state => ({
-        ui: { ...state.ui, showBattleCommand: battleId }
+        ui: { ...state.ui, showBattleCommand: true, commandingBattleId: battleId }
       }))
       get().pauseGame() // Pause when opening battle command
     },
     
     closeBattleCommand: () => {
       set(state => ({
-        ui: { ...state.ui, showBattleCommand: null }
+        ui: { ...state.ui, showBattleCommand: null, commandingBattleId: null }
       }))
     },
     

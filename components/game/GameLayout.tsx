@@ -40,7 +40,7 @@ export function GameLayout() {
             <ArmyPanel />
           )}
           {ui.activePanel === 'army' && <ArmyPanel />}
-          {ui.activePanel === 'commanders' && <CommanderPanel />}
+          {ui.activePanel === 'commander' && <CommanderPanel />}
         </SidePanel>
 
         {/* Map */}

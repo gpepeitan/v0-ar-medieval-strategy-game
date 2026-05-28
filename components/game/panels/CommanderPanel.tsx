@@ -18,14 +18,17 @@ export function CommanderPanel() {
     .filter(army => army.ownerId === playerFaction.id)
   
   const commanders = playerArmies
-    .filter(army => army.commanderId)
+    .filter(army => army.commander)
     .map(army => {
-      const cmd = game.commanders.get(army.commanderId!)
+      const cmd = game.commanders.get(army.commander!)
       if (!cmd) return null
-      return { ...cmd, armyId: army.id, armyName: army.name, armyMorale: army.morale }
+      const avgMorale = army.units.length > 0
+        ? Math.round(army.units.reduce((s, u) => s + u.morale, 0) / army.units.length)
+        : 100
+      return { ...cmd, armyId: army.id, armyName: army.name, armyMorale: avgMorale }
     })
-    .filter(Boolean) as (ReturnType<typeof game.commanders.get> & { armyId: string; armyName: string; armyMorale: number })[]
-  
+    .filter(Boolean) as (NonNullable<ReturnType<typeof game.commanders.get>> & { armyId: string; armyName: string; armyMorale: number })[]\
+
   return (
     <div className="space-y-4">
       <div>
@@ -48,8 +51,8 @@ export function CommanderPanel() {
           {commanders.map(commander => {
             if (!commander) return null
             // Derive level from experience (1 level per 100 XP)
-            const level = Math.floor(commander.experience / 100) + 1
-            const xpInLevel = commander.experience % 100
+            const level = Math.floor(commander.xp / 100) + 1
+            const xpInLevel = commander.xp % 100
             
             return (
               <Card key={commander.id} className="bg-card/50">

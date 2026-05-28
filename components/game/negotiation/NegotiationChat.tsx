@@ -166,6 +166,7 @@ export function NegotiationChat() {
           type: "success",
           title: terms.targetFactionId ? "Joint War Agreed!" : "Alliance Formed!",
           message: `${aiFaction.name} has agreed to your terms.`,
+          timestamp: Date.now(),
         })
       }
       setNegoState(prev => prev ? { ...prev, aiMood: "receptive", currentOffer: null } : null)
@@ -181,7 +182,7 @@ export function NegotiationChat() {
       peace: "I come to offer peace. Let us end this conflict.",
     }
     if (action === "enemy" && game && aiFaction) {
-      const worstRelation = aiFaction.relations
+      const worstRelation = Array.from(aiFaction.relations.values())
         .filter(r => r.value < -20)
         .sort((a, b) => a.value - b.value)[0]
       if (worstRelation) {
