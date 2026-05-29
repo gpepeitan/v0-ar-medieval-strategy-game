@@ -27,7 +27,7 @@ export function CommanderPanel() {
         : 100
       return { ...cmd, armyId: army.id, armyName: army.name, armyMorale: avgMorale }
     })
-    .filter(Boolean) as (NonNullable<ReturnType<typeof game.commanders.get>> & { armyId: string; armyName: string; armyMorale: number })[]\
+    .filter(Boolean) as (NonNullable<ReturnType<typeof game.commanders.get>> & { armyId: string; armyName: string; armyMorale: number })[]
 
   return (
     <div className="space-y-4">
