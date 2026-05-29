@@ -58,6 +58,9 @@ export function NewGameDialog() {
       startingResources: 'normal',
       fogOfWar: false,
       battleTimer: 45,
+      spawnLat: 48.8566,
+      spawnLng: 2.3522,
+      devSpeedOverride: false,
     }, settings.playerFaction)
     setOpen(false)
   }

@@ -1,9 +1,9 @@
 import { Faction, DiplomaticRelation, Territory, Army, GameState } from '../types'
 import { FACTION_CONFIG } from '../constants'
 
-// Helper: get relation between two factions from faction.relations array
+// Helper: get relation between two factions from faction.relations Map
 function getRelation(faction: Faction, targetId: string): DiplomaticRelation | undefined {
-  return faction.relations.find(r => r.factionId === targetId || r.targetId === targetId)
+  return faction.relations.get(targetId)
 }
 
 // Helper: compute military strength from game armies
@@ -228,9 +228,9 @@ export function evaluateProposal(
   }
 
   // Check for betrayal history
-  if (relation?.history.some(h => h.type === 'treaty_broken')) {
-    riskValue -= 25  // Never forget betrayal
-  }
+  const wasBetrayed = relation?.treaties?.some(t => !t.isActive && t.type === 'alliance')
+
+  if (wasBetrayed) riskValue -= 25 // Never forget betrayal
 
   // Personality modifiers
   const personalityMods: Record<string, { strategic: number; economic: number; vengeance: number; relationship: number }> = {
@@ -329,7 +329,7 @@ export function generateAIResponse(
   const relationValue = relation?.value || 0
 
   // Check for betrayal
-  const wasBetrayed = relation?.history.some(h => h.type === 'treaty_broken')
+  const wasBetrayed = relation?.treaties?.some(t => !t.isActive && t.type === 'alliance')
 
   // Personality-specific dialogue templates
   const dialogues = {
@@ -564,8 +564,8 @@ export function generateGreeting(
   const config = FACTION_CONFIG[aiFaction.id]
   const personality = config?.personality || 'opportunist'
   const relationValue = relation?.value || 0
-  const wasBetrayed = relation?.history.some(h => h.type === 'treaty_broken')
-  const isAtWar = relation?.treaties?.some(t => t.type === 'war' && t.isActive)
+  const wasBetrayed = relation?.treaties?.some(t => !t.isActive && t.type === 'alliance')
+  const isAtWar = relation?.status === 'war'
 
   if (wasBetrayed) {
     return `You have some nerve showing your face here after what you did. Speak quickly, before we change our mind about listening.`

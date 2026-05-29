@@ -525,8 +525,16 @@ export interface UIState {
   showNegotiationChat: boolean
   showBattleCommand: boolean | null
   commandingBattleId: string | null
-  showSaveLoad: boolean
-  showEventLog: boolean
+  // Extended dialog flags
+  showSiegeDialog?: boolean
+  showTradeDialog?: boolean
+  showDiplomacyDialog?: boolean
+  showSaveLoad?: boolean
+  showEventLog?: boolean
+  selectedFactionForDiplomacy?: string | null
+  // Notifications
+  notifications: Notification[]
+  battleNotifications?: unknown[]
   mapCenter: [number, number]
   mapZoom: number
 }
