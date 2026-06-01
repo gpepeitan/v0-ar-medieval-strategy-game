@@ -410,6 +410,14 @@ function getWeaknessForPersonality(personality: FactionPersonality): string {
 
 export const FACTION_TEMPLATES = FACTION_DEFINITIONS
 
+// ==================== COMMANDER CONSTANTS ====================
+
+export const COMMANDER_TRAITS = [
+  'Brave', 'Cautious', 'Aggressive', 'Defensive', 'Cunning',
+  'Loyal', 'Ambitious', 'Merciful', 'Ruthless', 'Charismatic',
+  'Stoic', 'Impulsive', 'Patient', 'Reckless', 'Wise'
+] as const
+
 // ==================== AI CONSTANTS ====================
 
 export const AI_PERSONALITY_WEIGHTS: Record<FactionPersonality, {
