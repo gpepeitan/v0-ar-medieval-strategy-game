@@ -12,7 +12,7 @@ export function EventLog() {
   if (!game) return null
   
   // Get recent events from the game events array
-  const recentEvents = game.events
+  const recentEvents = (game.events ?? [])
     .slice(-10)
     .reverse()
   
