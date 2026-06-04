@@ -194,9 +194,9 @@ export const useGameStore = create<GameStore>()((set, get) => {
           territories: new Map(territories.map(t => [t.id, t])),
           armies: new Map(armies.map(a => [a.id, a])),
           commanders: new Map(commanders.map(c => [c.id, c])),
-          activeBattles: new Map(),
+          battles: new Map(),
           activeNegotiation: null,
-          eventLog: [],
+          events: [],
           victoryCondition: { type: 'domination', threshold: 0.75 },
         }
         
@@ -575,7 +575,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
       const newGame = {
         ...game,
         factions: updatedFactions,
-        eventLog: [...game.eventLog, event],
+        events: [...game.events, event],
       }
       set({ game: newGame })
       updateGameState(newGame)

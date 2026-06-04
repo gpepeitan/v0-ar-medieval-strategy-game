@@ -397,7 +397,7 @@ export function GameMapInner() {
   const spawnCoords   = game?.playerSpawnCoords ?? null
   const territories   = game ? Array.from(game.territories.values()) : []
   const armies        = game ? Array.from(game.armies.values()) : []
-  const intersections = game?.localMapData.intersections ?? []
+  const intersections = game?.localMapData?.intersections ?? []
 
   // Initial map center: spawn coords or London fallback
   const mapCenter: [number, number] = spawnCoords ?? [51.505, -0.09]
@@ -405,7 +405,7 @@ export function GameMapInner() {
   // Fetch OSM data once spawn is known
   useEffect(() => {
     if (!spawnCoords) return
-    if (game?.localMapData.lastFetchedAt > 0) {
+    if ((game?.localMapData?.lastFetchedAt ?? 0) > 0) {
       setLoadState({ status: 'ready', message: '' })
       return
     }

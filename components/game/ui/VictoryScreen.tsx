@@ -25,7 +25,7 @@ export function VictoryScreen() {
     }
 
     // Check victory via event log
-    const victoryEvent = game.eventLog.find(e => e.type === 'victory' && e.factionIds?.includes(playerFaction.id))
+    const victoryEvent = (game.events ?? []).find(e => e.type === 'victory' && e.factionId === playerFaction.id)
     if (victoryEvent) {
       return { type: 'victory' as const, faction: playerFaction, event: victoryEvent }
     }
