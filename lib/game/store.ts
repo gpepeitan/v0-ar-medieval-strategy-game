@@ -100,6 +100,8 @@ interface GameStore {
   addNotification: (notification: Omit<Notification, 'id'>) => void
   removeNotification: (id: string) => void
   setMapView: (center: [number, number], zoom: number) => void
+  setPlayerSpawn: (coords: [number, number]) => void
+  setOsmData: (data: { territories: Territory[]; intersections: import('./types').OsmNode[] }) => void
   
   // Utility
   getPlayerFaction: () => Faction | null
@@ -774,6 +776,38 @@ export const useGameStore = create<GameStore>()((set, get) => {
     
     setMapView: (center, zoom) => {
       set(state => ({ ui: { ...state.ui, mapCenter: center, mapZoom: zoom } }))
+    },
+    
+    setPlayerSpawn: (coords) => {
+      set(state => {
+        if (!state.game) return {}
+        // Reposition the player's territories/armies around the real spawn point
+        const game = { ...state.game, playerSpawnCoords: coords }
+        return { game }
+      })
+    },
+    
+    setOsmData: ({ territories, intersections }) => {
+      set(state => {
+        if (!state.game) return {}
+        const merged = new Map(state.game.territories)
+        for (const t of territories) {
+          if (!merged.has(t.id)) merged.set(t.id, t)
+        }
+        const game: GameState = {
+          ...state.game,
+          territories: merged,
+          localMapData: {
+            territories,
+            intersections,
+            lastFetchedAt: Date.now(),
+            fetchBounds: state.game.playerSpawnCoords
+              ? [state.game.playerSpawnCoords, state.game.playerSpawnCoords]
+              : null,
+          },
+        }
+        return { game }
+      })
     },
     
     // ==================== UTILITY ====================
