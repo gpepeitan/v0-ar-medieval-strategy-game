@@ -28,13 +28,26 @@ import {
   Play,
   Crown,
   Sword,
+  MapPin,
 } from "lucide-react"
+
+const START_LOCATIONS = [
+  { id: 'paris', name: 'Paris', region: 'Frankish heartland', lat: 48.8566, lng: 2.3522 },
+  { id: 'london', name: 'London', region: 'British Isles', lat: 51.5074, lng: -0.1278 },
+  { id: 'rome', name: 'Rome', region: 'Italian peninsula', lat: 41.9028, lng: 12.4964 },
+  { id: 'constantinople', name: 'Constantinople', region: 'Byzantine seat', lat: 41.0082, lng: 28.9784 },
+  { id: 'cordoba', name: 'Córdoba', region: 'Iberian frontier', lat: 37.8882, lng: -4.7794 },
+  { id: 'kiev', name: 'Kyiv', region: 'Rus river network', lat: 50.4501, lng: 30.5234 },
+  { id: 'baghdad', name: 'Baghdad', region: 'Abbasid capital', lat: 33.3152, lng: 44.3661 },
+  { id: 'aachen', name: 'Aachen', region: 'Carolingian court', lat: 50.7753, lng: 6.0839 },
+] as const
 
 export interface GameSettings {
   playerFaction: string
   numOpponents: number
   difficulty: 'easy' | 'normal' | 'hard' | 'brutal'
   mapSize: 'small' | 'medium' | 'large'
+  startLocation: string
 }
 
 export function NewGameDialog() {
@@ -45,12 +58,14 @@ export function NewGameDialog() {
     playerFaction: 'frankish',
     numOpponents: 6,
     difficulty: 'normal',
-    mapSize: 'medium'
+    mapSize: 'medium',
+    startLocation: 'paris',
   })
 
   const selectedFactionConfig = FACTION_CONFIG[settings.playerFaction]
 
   const handleStartGame = () => {
+    const location = START_LOCATIONS.find(l => l.id === settings.startLocation) ?? START_LOCATIONS[0]
     startNewGame({
       mapRegion: 'europe',
       difficulty: settings.difficulty,
@@ -58,8 +73,8 @@ export function NewGameDialog() {
       startingResources: 'normal',
       fogOfWar: false,
       battleTimer: 45,
-      spawnLat: 48.8566,
-      spawnLng: 2.3522,
+      spawnLat: location.lat,
+      spawnLng: location.lng,
       devSpeedOverride: false,
     }, settings.playerFaction)
     setOpen(false)
@@ -141,6 +156,33 @@ export function NewGameDialog() {
                 </div>
               </div>
             )}
+
+            {/* Starting Location */}
+            <div className="space-y-3">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Choose Your Starting Location
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Your capital spawns here on the real-world map and the local terrain is loaded around it.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {START_LOCATIONS.map((loc) => (
+                  <button
+                    key={loc.id}
+                    onClick={() => setSettings(s => ({ ...s, startLocation: loc.id }))}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${
+                      settings.startLocation === loc.id
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <span className="block font-medium text-sm text-foreground">{loc.name}</span>
+                    <span className="block text-xs text-muted-foreground">{loc.region}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Number of Opponents */}
             <div className="space-y-3">

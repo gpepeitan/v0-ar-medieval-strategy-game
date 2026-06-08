@@ -378,7 +378,7 @@ function WeatherOverlay() {
 // ─── Loading / geolocation state ─────────────────────────────────────────────
 
 interface MapLoadingState {
-  status: 'requesting_location' | 'fetching_osm' | 'ready' | 'error'
+  status: 'fetching_osm' | 'ready' | 'error'
   message: string
 }
 
@@ -390,8 +390,8 @@ export function GameMapInner() {
   const setOsmData        = useGameStore(s => s.setOsmData)
 
   const [loadState, setLoadState] = useState<MapLoadingState>({
-    status: 'requesting_location',
-    message: 'Requesting your location…',
+    status: 'fetching_osm',
+    message: 'Fetching local map data…',
   })
 
   const spawnCoords   = game?.playerSpawnCoords ?? null

@@ -200,6 +200,13 @@ export const useGameStore = create<GameStore>()((set, get) => {
           activeNegotiation: null,
           events: [],
           victoryCondition: { type: 'domination', threshold: 0.75 },
+          playerSpawnCoords: [settings.spawnLat, settings.spawnLng],
+          localMapData: {
+            territories: [],
+            intersections: [],
+            lastFetchedAt: 0,
+            fetchBounds: null,
+          },
         }
         
         set({ 
